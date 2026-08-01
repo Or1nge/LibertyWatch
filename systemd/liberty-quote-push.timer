@@ -1,9 +1,8 @@
 [Unit]
-Description=Refresh and push Liberty quotes every minute
+Description=Refresh and push Liberty quotes every weekday minute
 
 [Timer]
-OnBootSec=30s
-OnUnitActiveSec=1min
+OnCalendar=Mon..Fri *-*-* *:*:00
 AccuracySec=5s
 RandomizedDelaySec=0
 Unit=liberty-quote-push.service

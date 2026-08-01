@@ -1,8 +1,8 @@
 [Unit]
-Description=Refresh and push Liberty ten-year weekly prices every Saturday
+Description=Refresh and push Liberty ten-year weekly prices every Monday
 
 [Timer]
-OnCalendar=Sat *-*-* 08:15:00
+OnCalendar=Mon *-*-* 08:15:00
 Persistent=true
 AccuracySec=5min
 RandomizedDelaySec=5min

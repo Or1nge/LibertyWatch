@@ -9,14 +9,14 @@
 `config/demo-watchlist.json` 只用于检查界面，所有内容均明确标为虚构。
 
 当前视觉层采用黑白高对比的广告杂志风格，以几何线稿、大字标题、深浅状态卡
-和胶囊控件呈现；视觉改版不改变行情字段、目标价规则或每分钟刷新链路。
+和胶囊控件呈现；视觉改版不改变行情字段、目标价规则或工作日每分钟刷新链路。
 
 ## 架构
 
 ```text
 本机 Linux
   Futu OpenD 127.0.0.1:11111
-          ├─ 每分钟快照（每批最多 20 只）→ collector/push_quotes.py
+          ├─ 工作日每分钟快照（每批最多 20 只）→ collector/push_quotes.py
           └─ 每周十年前复权周线          → collector/push_history.py
           │ 两份 JSON 分别 SCP 上传并原子替换
           ▼
@@ -38,8 +38,8 @@ Ali 不会反向连接本机，也不保存或运行 Futu 登录状态。公网�
 
 - 正式入口：`http://106.14.134.33:5048/`
 - 虚构演示：`http://106.14.134.33:5048/?demo=1`
-- 本机 timer：`liberty-quote-push.timer`，每分钟执行
-- 本机周线 timer：`liberty-history-push.timer`，每周六执行
+- 本机 timer：`liberty-quote-push.timer`，仅工作日每分钟执行
+- 本机周线 timer：`liberty-history-push.timer`，每周一执行
 
 ## 页面
 
@@ -56,7 +56,7 @@ Ali 不会反向连接本机，也不保存或运行 Futu 登录状态。公网�
 港股现价和三档目标价同时显示港币与约合人民币；表格中的估值状态、提醒状态
 可直接点击筛选。详情图使用近十年前复权周收盘价，并叠加 3% / 4% / 5% 三档
 自动目标价水平线。证券详情中的 PE、PE-TTM、PB、TTM 股息率、总市值、EPS
-和每股净资产来自同一份 Futu 市场快照，随每分钟行情链路更新。
+和每股净资产来自同一份 Futu 市场快照，随工作日每分钟行情链路更新。
 
 ## 本地运行与测试
 
@@ -245,7 +245,7 @@ systemctl --user status liberty-history-push.timer
 journalctl --user -u liberty-history-push.service -n 50
 ```
 
-定时器默认每周六 08:15 触发，并允许最多五分钟随机延迟。Futu 历史 K 线额度
+定时器默认每周一 08:15 触发，并允许最多五分钟随机延迟。Futu 历史 K 线额度
 按证券计数，采集器会在开始前读取额度；额度不足时整批拒绝，不会向 Ali 推送
 残缺文件。额度按七天滚动释放。若正式名单刚发生变化而新增证券暂时没有额度，
 可用 `--retain-compatible` 只保留新旧名单交集中的既有 Futu 周线；网页会按
