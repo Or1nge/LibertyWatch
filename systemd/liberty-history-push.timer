@@ -1,0 +1,12 @@
+[Unit]
+Description=Refresh and push Liberty ten-year weekly prices every Saturday
+
+[Timer]
+OnCalendar=Sat *-*-* 08:15:00
+Persistent=true
+AccuracySec=5min
+RandomizedDelaySec=5min
+Unit=liberty-history-push.service
+
+[Install]
+WantedBy=timers.target

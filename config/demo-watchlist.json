@@ -1,0 +1,363 @@
+{
+  "schemaVersion": 1,
+  "mode": "demo",
+  "isDemo": true,
+  "title": "Liberty 虚构演示清单",
+  "description": "仅用于检查界面、排序、筛选和状态派生。",
+  "disclaimer": "虚构演示数据：所有公司、代码、价格、涨跌、股息率、估值、行业热度和历史曲线均为虚构，不是真实或实时市场数据，不构成投资建议。",
+  "refreshIntervalMs": 60000,
+  "marketData": {
+    "provider": "fictional_fixture",
+    "realtime": false,
+    "status": "fictional_demo",
+    "asOfLabel": "固定虚构演示快照"
+  },
+  "sectorSignals": {
+    "基础设施（虚构演示）": {
+      "return1dPct": 1.6,
+      "return5dPct": 4.8,
+      "return20dPct": 9.3,
+      "advancers5dPct": 100,
+      "aboveMa20Pct": 100,
+      "issuerCount": 3,
+      "coveredIssuerCount": 3,
+      "coveragePct": 100,
+      "asOf": "虚构演示时点（非实时）"
+    },
+    "消费服务（虚构演示）": {
+      "return1dPct": -1.2,
+      "return5dPct": -3.6,
+      "return20dPct": -5.4,
+      "advancers5dPct": 33.3,
+      "aboveMa20Pct": 33.3,
+      "issuerCount": 3,
+      "coveredIssuerCount": 3,
+      "coveragePct": 100,
+      "asOf": "虚构演示时点（非实时）"
+    }
+  },
+  "securities": [
+    {
+      "id": "demo-northstar-grid",
+      "issuerId": "demo-fictional-issuer-01",
+      "name": "北辰电网（虚构）",
+      "ticker": "DEMO-CN01",
+      "market": "CN",
+      "currency": "CNY",
+      "sector": "基础设施（虚构演示）",
+      "industry": "电力基础设施（虚构）",
+      "quote": {
+        "currentPrice": 41.2,
+        "dailyChangePct": -1.8,
+        "marketState": "demo",
+        "lastUpdatedAt": null,
+        "status": "fictional"
+      },
+      "targetPrices": {
+        "watch": 46,
+        "preferred": 42,
+        "deep": 37.5
+      },
+      "expectedDividendYieldPct": 4.6,
+      "valuationStatus": "attractive",
+      "metrics": {
+        "pe": 10.8,
+        "peTtm": 10.4,
+        "pb": 1.2,
+        "dividendYieldTtmPct": 4.2,
+        "totalMarketValue": 240000000000,
+        "earningsPerShare": 3.81,
+        "bookValuePerShare": 34.33,
+        "roePct": 11.9
+      },
+      "investmentThesis": [
+        "虚构的受监管基础设施现金流较稳定。",
+        "虚构的资本开支周期正在回落。"
+      ],
+      "risks": [
+        "虚构的电价政策变化。",
+        "虚构的大型项目执行偏差。"
+      ],
+      "notes": "虚构演示笔记：等待目标区间，不代表真实投资判断。",
+      "targetRevisionHistory": [
+        {
+          "label": "演示修订 A",
+          "preferredPrice": 42,
+          "reason": "虚构演示原因",
+          "changedAt": null
+        }
+      ],
+      "technicalIndicators": {
+        "rsi14": 31,
+        "drawdown60dPct": -18,
+        "relativeSector5dPct": -6.3,
+        "historyTradingDays": 120,
+        "asOf": "虚构演示时点（非实时）"
+      },
+      "history": [
+        { "label": "T-6", "price": 47.1 },
+        { "label": "T-5", "price": 46.4 },
+        { "label": "T-4", "price": 45.8 },
+        { "label": "T-3", "price": 44.5 },
+        { "label": "T-2", "price": 42.8 },
+        { "label": "T-1", "price": 41.9 },
+        { "label": "T", "price": 41.2 }
+      ]
+    },
+    {
+      "id": "demo-harbor-logistics",
+      "issuerId": "demo-fictional-issuer-02",
+      "name": "远湾物流（虚构）",
+      "ticker": "DEMO-HK02",
+      "market": "HK",
+      "currency": "HKD",
+      "sector": "基础设施（虚构演示）",
+      "industry": "港口与物流（虚构）",
+      "quote": {
+        "currentPrice": 18.35,
+        "dailyChangePct": 1.2,
+        "marketState": "demo",
+        "lastUpdatedAt": null,
+        "status": "fictional"
+      },
+      "targetPrices": {
+        "watch": 19.5,
+        "preferred": 18,
+        "deep": 15.8
+      },
+      "expectedDividendYieldPct": 5.1,
+      "valuationStatus": "attractive",
+      "metrics": {
+        "pe": 8.7,
+        "peTtm": 8.4,
+        "pb": 0.9,
+        "dividendYieldTtmPct": 5,
+        "totalMarketValue": 68000000000,
+        "earningsPerShare": 1.95,
+        "bookValuePerShare": 19.33,
+        "roePct": 10.4
+      },
+      "investmentThesis": [
+        "虚构的长期吞吐量增长与稳定派息。"
+      ],
+      "risks": [
+        "虚构的贸易周期和资本开支风险。"
+      ],
+      "notes": "虚构演示笔记。",
+      "targetRevisionHistory": [],
+      "history": [
+        { "label": "T-6", "price": 20.1 },
+        { "label": "T-5", "price": 19.7 },
+        { "label": "T-4", "price": 19.2 },
+        { "label": "T-3", "price": 18.7 },
+        { "label": "T-2", "price": 18.1 },
+        { "label": "T-1", "price": 18.2 },
+        { "label": "T", "price": 18.35 }
+      ]
+    },
+    {
+      "id": "demo-river-water",
+      "issuerId": "demo-fictional-issuer-03",
+      "name": "澄江水务（虚构）",
+      "ticker": "DEMO-CN03",
+      "market": "CN",
+      "currency": "CNY",
+      "sector": "基础设施（虚构演示）",
+      "industry": "城市水务（虚构）",
+      "quote": {
+        "currentPrice": 12.72,
+        "dailyChangePct": 0.6,
+        "marketState": "demo",
+        "lastUpdatedAt": null,
+        "status": "fictional"
+      },
+      "targetPrices": {
+        "watch": 13.5,
+        "preferred": 12.5,
+        "deep": 10.8
+      },
+      "expectedDividendYieldPct": 5.8,
+      "valuationStatus": "undervalued",
+      "metrics": {
+        "pe": 6.1,
+        "peTtm": 5.9,
+        "pb": 0.7,
+        "dividendYieldTtmPct": 5.6,
+        "totalMarketValue": 33000000000,
+        "earningsPerShare": 1.92,
+        "bookValuePerShare": 16.43,
+        "roePct": 12.6
+      },
+      "investmentThesis": [
+        "虚构的城市水务现金流与派息稳定性。"
+      ],
+      "risks": [
+        "虚构的水价调整与资本开支风险。"
+      ],
+      "notes": "虚构演示笔记。",
+      "targetRevisionHistory": [],
+      "history": [
+        { "label": "T-6", "price": 11.9 },
+        { "label": "T-5", "price": 12.1 },
+        { "label": "T-4", "price": 12.4 },
+        { "label": "T-3", "price": 12.8 },
+        { "label": "T-2", "price": 12.6 },
+        { "label": "T-1", "price": 12.65 },
+        { "label": "T", "price": 12.72 }
+      ]
+    },
+    {
+      "id": "demo-orbit-health",
+      "issuerId": "demo-fictional-issuer-04",
+      "name": "星环医疗（虚构）",
+      "ticker": "DEMO-HK04",
+      "market": "HK",
+      "currency": "HKD",
+      "sector": "消费服务（虚构演示）",
+      "industry": "医疗服务（虚构）",
+      "quote": {
+        "currentPrice": 28.6,
+        "dailyChangePct": -2.4,
+        "marketState": "demo",
+        "lastUpdatedAt": null,
+        "status": "fictional"
+      },
+      "targetPrices": {
+        "watch": 27,
+        "preferred": 24,
+        "deep": 20
+      },
+      "expectedDividendYieldPct": 2.1,
+      "valuationStatus": "fair",
+      "metrics": {
+        "pe": 22.4,
+        "peTtm": 21.8,
+        "pb": 2.6,
+        "dividendYieldTtmPct": 2,
+        "totalMarketValue": 95000000000,
+        "earningsPerShare": 1.13,
+        "bookValuePerShare": 9.73,
+        "roePct": 12.1
+      },
+      "investmentThesis": [
+        "虚构的专科服务网络具备扩张空间。"
+      ],
+      "risks": [
+        "虚构的监管、扩张和人力成本风险。"
+      ],
+      "notes": "虚构演示笔记。",
+      "targetRevisionHistory": [],
+      "history": [
+        { "label": "T-6", "price": 33.2 },
+        { "label": "T-5", "price": 32.4 },
+        { "label": "T-4", "price": 31.5 },
+        { "label": "T-3", "price": 30.1 },
+        { "label": "T-2", "price": 29.4 },
+        { "label": "T-1", "price": 29.3 },
+        { "label": "T", "price": 28.6 }
+      ]
+    },
+    {
+      "id": "demo-atlas-telecom",
+      "issuerId": "demo-fictional-issuer-05",
+      "name": "寰宇通信（虚构）",
+      "ticker": "DEMO-CN05",
+      "market": "CN",
+      "currency": "CNY",
+      "sector": "消费服务（虚构演示）",
+      "industry": "电信运营（虚构）",
+      "quote": {
+        "currentPrice": 8.96,
+        "dailyChangePct": 1.9,
+        "marketState": "demo",
+        "lastUpdatedAt": null,
+        "status": "fictional"
+      },
+      "targetPrices": {
+        "watch": 9.5,
+        "preferred": 9,
+        "deep": 7.8
+      },
+      "expectedDividendYieldPct": 6.2,
+      "valuationStatus": "deeply_attractive",
+      "metrics": {
+        "pe": 9.4,
+        "peTtm": 9.1,
+        "pb": 0.8,
+        "dividendYieldTtmPct": 6,
+        "totalMarketValue": 190000000000,
+        "earningsPerShare": 0.94,
+        "bookValuePerShare": 11.05,
+        "roePct": 9.7
+      },
+      "investmentThesis": [
+        "虚构的网络资产与派息政策具有稳定性。"
+      ],
+      "risks": [
+        "虚构的资本开支和价格监管风险。"
+      ],
+      "notes": "虚构演示笔记。",
+      "targetRevisionHistory": [],
+      "history": [
+        { "label": "T-6", "price": 8.1 },
+        { "label": "T-5", "price": 8.3 },
+        { "label": "T-4", "price": 8.45 },
+        { "label": "T-3", "price": 8.5 },
+        { "label": "T-2", "price": 8.7 },
+        { "label": "T-1", "price": 8.79 },
+        { "label": "T", "price": 8.96 }
+      ]
+    },
+    {
+      "id": "demo-summit-consumer",
+      "issuerId": "demo-fictional-issuer-06",
+      "name": "云岭消费（虚构）",
+      "ticker": "DEMO-CN06",
+      "market": "CN",
+      "currency": "CNY",
+      "sector": "消费服务（虚构演示）",
+      "industry": "耐用消费品（虚构）",
+      "quote": {
+        "currentPrice": 66.8,
+        "dailyChangePct": -0.3,
+        "marketState": "demo",
+        "lastUpdatedAt": null,
+        "status": "fictional"
+      },
+      "targetPrices": {
+        "watch": 62,
+        "preferred": 55,
+        "deep": 48
+      },
+      "expectedDividendYieldPct": 3.3,
+      "valuationStatus": "fair",
+      "metrics": {
+        "pe": 15.7,
+        "peTtm": 15.3,
+        "pb": 2.8,
+        "dividendYieldTtmPct": 3.1,
+        "totalMarketValue": 420000000000,
+        "earningsPerShare": 3.22,
+        "bookValuePerShare": 18.04,
+        "roePct": 18.3
+      },
+      "investmentThesis": [
+        "虚构的品牌与现金流质量较高。"
+      ],
+      "risks": [
+        "虚构的需求放缓与渠道库存风险。"
+      ],
+      "notes": "虚构演示笔记。",
+      "targetRevisionHistory": [],
+      "history": [
+        { "label": "T-6", "price": 72.5 },
+        { "label": "T-5", "price": 71.2 },
+        { "label": "T-4", "price": 70.8 },
+        { "label": "T-3", "price": 69.7 },
+        { "label": "T-2", "price": 68.2 },
+        { "label": "T-1", "price": 67 },
+        { "label": "T", "price": 66.8 }
+      ]
+    }
+  ]
+}

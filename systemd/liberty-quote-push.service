@@ -1,0 +1,21 @@
+[Unit]
+Description=Liberty Futu quote snapshot push to Ali
+Wants=network-online.target futu-opend.service
+After=network-online.target futu-opend.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/or1ngelinux/Liberty/webapp
+EnvironmentFile=-%h/.config/liberty-watch/collector.env
+ExecStart=/home/or1ngelinux/Liberty/tools/futu-opend/.venv/bin/python /home/or1ngelinux/Liberty/webapp/collector/push_quotes.py
+TimeoutStartSec=90
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/or1ngelinux/Liberty/webapp/runtime %h/.com.futunn.FutuOpenD/Log
+RestrictSUIDSGID=true
+LockPersonality=true
+StandardOutput=journal
+StandardError=journal
