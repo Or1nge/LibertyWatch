@@ -8,6 +8,7 @@ on:
       - "webapp/liberty_v2/practical_scoring.py"
       - "webapp/scripts/shareholder_v2_readiness.py"
       - "webapp/tests/test_practical_scoring.py"
+      - "webapp/tests/test_shareholder_v2_readiness.py"
       - ".github/workflows/shareholder-v2-practical-check.yml"
   workflow_dispatch:
 
@@ -39,6 +40,9 @@ jobs:
       - name: Validate proposed policy JSON
         run: python -m json.tool webapp/config/metric_policy_v2_1_proposed.json >/dev/null
 
-      - name: Run practical scoring tests
+      - name: Run practical scoring and readiness tests
         working-directory: webapp
-        run: python -m pytest -q tests/test_practical_scoring.py
+        run: >-
+          python -m pytest -q
+          tests/test_practical_scoring.py
+          tests/test_shareholder_v2_readiness.py
