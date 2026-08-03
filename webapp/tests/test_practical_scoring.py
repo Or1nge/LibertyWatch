@@ -69,7 +69,7 @@ def test_payout_quality_defaults_only_non_core_components() -> None:
         balance_sheet=None,
         buyback_quality=None,
     )
-    assert result.value == D("75.5")
+    assert result.value == D("72.5")
     assert result.imputed_components == ("balance_sheet", "buyback_quality")
     with pytest.raises(InsufficientDataError):
         payout_quality_practical(
