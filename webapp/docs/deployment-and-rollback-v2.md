@@ -51,7 +51,7 @@ SHAREHOLDER_V2_QUOTE_SNAPSHOT=/var/lib/liberty/shareholder-v2/inputs/latest_snap
 
 | 变量 | 用途 |
 |---|---|
-| `SHAREHOLDER_RETURN_V2_ENABLED` | FastAPI v2功能开关 |
+| `SHAREHOLDER_RETURN_V2_ENABLED` | FastAPI v2功能开关；默认`false`，只有明确切换时设为`true` |
 | `SHAREHOLDER_V2_LOCAL_ROOT` / `STAGING_DIR` | Linux数据与标准化输入 |
 | `SHAREHOLDER_V2_QUOTE_SNAPSHOT` | 行情快变量交接文件 |
 | `ANALYSIS_JOB_DB` | SQLite任务库 |

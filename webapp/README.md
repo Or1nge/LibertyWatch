@@ -53,6 +53,9 @@ v2新增的数据流严格保持相同方向：Linux以Decimal计算并生成str
 `gpt-5.6-sol`/`xhigh`，验证后再生成独立analysis release。Ali FastAPI只读两个
 `current`，不计算、不抓取、不调用模型。
 
+`SHAREHOLDER_RETURN_V2_ENABLED`默认关闭；代码部署不会自动把页面切到v2。只有数据
+release达到约定门槛并由运维显式设置为`true`后，FastAPI才开放v2只读数据。
+
 当前部署：
 
 - 正式入口：`http://106.14.134.33:5048/`
