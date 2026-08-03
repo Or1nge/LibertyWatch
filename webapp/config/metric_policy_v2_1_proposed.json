@@ -1,0 +1,250 @@
+{
+  "schema_version": "1.0",
+  "policy_status": "PROPOSED_NOT_ACTIVE",
+  "calculation_version": "shareholder-return-v2.1.0",
+  "metric_definition_version": "shareholder-return-v2.1.0",
+  "base_currency": "CNY",
+  "data_tiers": {
+    "BLOCKED": {
+      "confidence_below": "35",
+      "publishes_new_scores": false,
+      "classification_cap": null
+    },
+    "ESTIMATED": {
+      "confidence_min": "35",
+      "confidence_below": "60",
+      "publishes_new_scores": true,
+      "classification_cap": "C"
+    },
+    "CALCULABLE": {
+      "confidence_min": "60",
+      "confidence_below": "85",
+      "publishes_new_scores": true,
+      "classification_cap": "A"
+    },
+    "VERIFIED": {
+      "confidence_min": "85",
+      "requires_verified_core": true,
+      "forbids_high_impact_proxy": true,
+      "publishes_new_scores": true,
+      "classification_cap": "A"
+    }
+  },
+  "calculation_basis": [
+    "DIRECT",
+    "DERIVED",
+    "PROXY",
+    "CONSERVATIVE_DEFAULT",
+    "UNAVAILABLE"
+  ],
+  "score_weights": {
+    "payout_quality": {
+      "coverage": "0.35",
+      "recent_trend": "0.20",
+      "history_stability": "0.20",
+      "balance_sheet": "0.15",
+      "buyback_quality": "0.10"
+    },
+    "recommendation": {
+      "return_score": "0.45",
+      "payout_quality": "0.30",
+      "business_durability": "0.15",
+      "governance_capital_allocation": "0.10"
+    },
+    "entry_risk": {
+      "distribution_deterioration": "0.20",
+      "coverage": "0.20",
+      "balance_sheet": "0.15",
+      "structural_cycle": "0.15",
+      "policy_asset_life": "0.12",
+      "valuation_trap": "0.10",
+      "governance": "0.08"
+    }
+  },
+  "missing_component_defaults": {
+    "ri_quality": "50",
+    "eri_risk": "60",
+    "buyback_quality_unknown": "50",
+    "no_buyback_no_material_dilution": "70"
+  },
+  "history_caps": [
+    {
+      "minimum_years": 0,
+      "maximum_years": 1,
+      "recommendation_cap": null,
+      "calculable": false
+    },
+    {
+      "minimum_years": 2,
+      "maximum_years": 2,
+      "recommendation_cap": "70",
+      "calculable": true
+    },
+    {
+      "minimum_years": 3,
+      "maximum_years": 4,
+      "recommendation_cap": "85",
+      "calculable": true
+    },
+    {
+      "minimum_years": 5,
+      "maximum_years": 100,
+      "recommendation_cap": "100",
+      "calculable": true
+    }
+  ],
+  "return_score_bands": [
+    ["0.00", "0"],
+    ["0.01", "20"],
+    ["0.02", "40"],
+    ["0.03", "60"],
+    ["0.04", "75"],
+    ["0.05", "88"],
+    ["0.06", "100"]
+  ],
+  "coverage": {
+    "non_financial": {
+      "minimum_usable_years": 2,
+      "maximum_years": 5,
+      "complete_fcf_haircut": "0.90",
+      "simplified_fcf_haircut": "0.85",
+      "simplified_formula": "operating_cash_flow-capital_expenditure"
+    },
+    "financial_fallback_to_non_financial_fcf": false
+  },
+  "growth": {
+    "direct_minimum_years": 4,
+    "direct_positive_contribution_cap": "0.03",
+    "short_series_minimum_years": 2,
+    "short_series_positive_contribution_cap": "0.02",
+    "missing_series_contribution": "0",
+    "negative_growth_fully_recognized": true
+  },
+  "market_cap_proxies": {
+    "vendor_total_market_cap": {
+      "allowed": true,
+      "requires": [
+        "value",
+        "currency",
+        "source",
+        "timestamp"
+      ]
+    },
+    "covered_class_gross_up": {
+      "allowed": true,
+      "minimum_verified_coverage_ratio": "0.80",
+      "denominator_buffer": "1.05",
+      "formula": "covered_market_cap/verified_coverage_ratio*1.05"
+    },
+    "single_class_without_verified_coverage": {
+      "allowed": false
+    }
+  },
+  "valuation": {
+    "comparable_history": {
+      "formula": "min(0,(historical_median/current)^(1/10)-1)"
+    },
+    "industry_percentile": {
+      "formula": "-min(0.03,max(0,p-0.50)*0.06)"
+    },
+    "current_only": {
+      "adjustment": "-0.005",
+      "valuation_trap_risk": "60"
+    },
+    "positive_expansion_credit_allowed": false
+  },
+  "veto_missing_policy": {
+    "unknown_veto_eri_points_each": "1.25",
+    "unknown_veto_eri_cap": "8",
+    "triggered_non_major_veto_points_each": "5",
+    "triggered_non_major_veto_cap": "10",
+    "missing_is_safe": false
+  },
+  "confidence": {
+    "starting_score": "100",
+    "deductions": {
+      "VENDOR_TOTAL_MARKET_CAP": "4",
+      "COVERED_CLASS_GROSS_UP": "8",
+      "SIMPLIFIED_FCF": "5",
+      "BUYBACK_NOT_CREDITED": "3",
+      "ONLY_TWO_DIVIDEND_YEARS": "8",
+      "THREE_TO_FOUR_DIVIDEND_YEARS": "4",
+      "ONLY_TWO_COVERAGE_YEARS": "6",
+      "ONLY_THREE_COVERAGE_YEARS": "3",
+      "SHORT_GROWTH_SERIES": "5",
+      "GROWTH_NOT_CREDITED": "8",
+      "VALUATION_INDUSTRY_PROXY": "4",
+      "VALUATION_CURRENT_ONLY": "7",
+      "BUSINESS_DURABILITY_DEFAULT": "5",
+      "GOVERNANCE_DEFAULT": "4",
+      "MISSING_ERI_COMPONENT": "3",
+      "RECONCILIATION_NOT_RUN": "1",
+      "RECONCILIATION_WARNING": "1",
+      "RECONCILIATION_CONSERVATIVE": "3",
+      "UNKNOWN_VETO": "1",
+      "SINGLE_NON_OFFICIAL_SOURCE": "2",
+      "STALE_QUOTE_24_72H": "5",
+      "BALANCE_SHEET_PROXY": "4"
+    },
+    "caps": {
+      "MISSING_ERI_COMPONENT": "9",
+      "RECONCILIATION_NOT_RUN": "4",
+      "RECONCILIATION_WARNING_TOTAL": "6",
+      "UNKNOWN_VETO": "5",
+      "SINGLE_NON_OFFICIAL_SOURCE": "6"
+    },
+    "high_impact_proxy_codes": [
+      "COVERED_CLASS_GROSS_UP",
+      "GROWTH_NOT_CREDITED",
+      "VALUATION_CURRENT_ONLY"
+    ]
+  },
+  "reconciliation": {
+    "passed_relative_max": "0.02",
+    "warning_relative_max": "0.05",
+    "conservative_relative_max": "0.10",
+    "scale_error_ratio": "10",
+    "missing_input_status": "NOT_RUN",
+    "buyback_or_share_bridge_conflict_disables_buyback_only": true,
+    "market_cap_or_dividend_conflict_over_10pct_blocks_core": true
+  },
+  "blocking_rules": [
+    "IDENTITY_OR_SECURITY_CONFLICT",
+    "FISCAL_PERIOD_OR_DIVIDEND_LIFECYCLE_CONFLICT",
+    "CURRENCY_UNIT_OR_SCALE_CONFLICT",
+    "MATERIAL_CORE_SOURCE_CONFLICT",
+    "MARKET_CAP_BASIS_MISSING",
+    "DIVIDEND_HISTORY_LT_2Y",
+    "COVERAGE_MINIMUM_MISSING",
+    "CURRENT_VALUATION_MISSING",
+    "NON_FINITE_OR_IMPOSSIBLE_CORE_VALUE",
+    "CORE_SOURCE_ENVELOPE_MISSING"
+  ],
+  "classification_bands": {
+    "A": {
+      "ri_min": "78",
+      "eri_max": "30",
+      "confidence_min": "80",
+      "estimated_allowed": false,
+      "unknown_major_veto_allowed": false
+    },
+    "B": {
+      "ri_min": "65",
+      "eri_max": "45",
+      "confidence_min": "60",
+      "estimated_allowed": false
+    },
+    "D": {
+      "ri_below": "50",
+      "eri_above": "65",
+      "major_investment_veto": true
+    },
+    "C": {
+      "fallback": true,
+      "estimated_cap": true
+    },
+    "BLOCKED": {
+      "classification": null
+    }
+  }
+}
