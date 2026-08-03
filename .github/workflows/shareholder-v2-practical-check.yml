@@ -1,0 +1,44 @@
+name: Shareholder return v2.1 practical checks
+
+on:
+  pull_request:
+    paths:
+      - "docs/shareholder_return_v2_practical_v2_1.md"
+      - "webapp/config/metric_policy_v2_1_proposed.json"
+      - "webapp/liberty_v2/practical_scoring.py"
+      - "webapp/scripts/shareholder_v2_readiness.py"
+      - "webapp/tests/test_practical_scoring.py"
+      - ".github/workflows/shareholder-v2-practical-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  practical-scoring:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependency
+        run: python -m pip install --disable-pip-version-check pytest
+
+      - name: Compile new modules
+        run: >-
+          python -m compileall -q
+          webapp/liberty_v2/practical_scoring.py
+          webapp/scripts/shareholder_v2_readiness.py
+
+      - name: Validate proposed policy JSON
+        run: python -m json.tool webapp/config/metric_policy_v2_1_proposed.json >/dev/null
+
+      - name: Run practical scoring tests
+        working-directory: webapp
+        run: python -m pytest -q tests/test_practical_scoring.py
