@@ -164,6 +164,17 @@ cd /home/or1ngelinux/Liberty/webapp
 .venv/bin/python scripts/import_reconciled_source_ledgers.py rollback --run-id <latest-run-id>
 ```
 
+本次已执行的六个run必须按以下顺序回滚：
+
+```bash
+.venv/bin/python scripts/import_reconciled_source_ledgers.py rollback --run-id dividend-v2-20260803
+.venv/bin/python scripts/import_reconciled_source_ledgers.py rollback --run-id share-capital-v1-20260803
+.venv/bin/python scripts/import_reconciled_source_ledgers.py rollback --run-id cashflow-v2-20260803
+.venv/bin/python scripts/import_reconciled_source_ledgers.py rollback --run-id reconciled-v1-official-source-fix-20260803
+.venv/bin/python scripts/import_reconciled_source_ledgers.py rollback --run-id reconciled-v1-provenance-amendment-20260803
+.venv/bin/python scripts/import_reconciled_source_ledgers.py rollback --run-id reconciled-v1-20260803
+```
+
 随后才按下述命令切回旧的结构化发布release。来源账本回滚不删除官方PDF、Futu
 不可变证据、对账bundle或计算release。
 

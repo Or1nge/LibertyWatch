@@ -18,8 +18,10 @@
 - [指标、数据字典、A/H和行业口径](docs/shareholder-return-v2.md)；
 - [56家公司来源账本回填](docs/source-ledger-backfill.md)；
 - [现金流候选对账](docs/reconciliation-cashflow-v1.md)、
-  [普通股息候选对账](docs/reconciliation-dividend-v1.md)和
+  [普通股息候选对账v1](docs/reconciliation-dividend-v1.md)、
+  [最近五年普通股息对账v2](docs/reconciliation-dividend-v2.md)、
   [注销回购候选对账](docs/reconciliation-cancellation-v1.md)；
+- [股本与股份权利对账](docs/reconciliation-share-capital-v1.md)；
 - [本地Codex分析服务](docs/codex-analysis-service.md)；
 - [部署、故障排查与回滚](docs/deployment-and-rollback-v2.md)。
 

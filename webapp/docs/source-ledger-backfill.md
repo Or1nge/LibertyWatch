@@ -203,25 +203,27 @@ cd /home/or1ngelinux/Liberty/webapp
 ## 2026-08-03受控导入
 
 候选和人工对账产物本身仍为只读。正式写入只能经过
-`scripts/import_reconciled_source_ledgers.py`：它先校验Futu账本、现金流、股息和
-注销四套manifest的完整文件集合及SHA-256，在内存中构造全部目标文件，预演
-差异，再对每个旧文件做逐文件备份和原子替换。导入不会填写未知值、不会授权
-合格回购、不会开放推荐，也不会触发Codex。
+`scripts/import_reconciled_source_ledgers.py`：它先校验Futu账本、两版现金流、
+两版股息、注销和股本七套manifest的完整文件集合及SHA-256，在内存中构造全部
+目标文件，预演差异，再对每个旧文件做逐文件备份和原子替换。导入不会填写
+未知值、不会授权合格回购、不会开放推荐，也不会触发Codex。
 
 本次实际导入范围：
 
 - 56家公司Futu逐财年辅助账本；
-- 45家公司268个官方年报现金流字段（223个CFO、45个资本开支）；
-- 7家公司11个完整财年普通现金股息总额；
+- 56家公司455个不重复的官方年报现金流字段；
+- 14家公司25个不重复的完整财年普通现金股息总额；
 - 2家公司6个已确认注销股份数；
+- 18家公司21个官方股份类别事实；
 - 未验证的股份权利、真实已发行股数、估值和四项会计对账显式记录为
   `NOT_DISCLOSED/null`，从不写成0。
 
 实际运行ID为`reconciled-v1-20260803`、来源缺失状态补充
 `reconciled-v1-provenance-amendment-20260803`，以及官方来源层级修正
-`reconciled-v1-official-source-fix-20260803`。前两个run的56个目标文件及第三个
-run的45个目标文件均通过post-write SHA-256；再次预演为
-`changed_company_count=0`。现金流最终保留真实发布平台：巨潮资讯网239条、香港
+`reconciled-v1-official-source-fix-20260803`；随后依次运行
+`cashflow-v2-20260803`、`share-capital-v1-20260803`和`dividend-v2-20260803`。
+每个run的目标文件均通过post-write SHA-256；最后再次预演为
+`changed_company_count=0`。现金流v1最终保留真实发布平台：巨潮资讯网239条、香港
 交易所披露易29条，不再因英文固定标签错误而保留同值Futu来源。重算仍为
 `INVALID=67`，其中这56家已没有“来源记录本身缺失”的错误，但仍因普通股息
 历史、稀释后股本桥、公司总股本/股份权利、估值、增长和版本化风险配置不足而
@@ -246,6 +248,12 @@ cd /home/or1ngelinux/Liberty/webapp
 如有后续漂移会拒绝覆盖：
 
 ```bash
+.venv/bin/python scripts/import_reconciled_source_ledgers.py rollback \
+  --run-id dividend-v2-20260803
+.venv/bin/python scripts/import_reconciled_source_ledgers.py rollback \
+  --run-id share-capital-v1-20260803
+.venv/bin/python scripts/import_reconciled_source_ledgers.py rollback \
+  --run-id cashflow-v2-20260803
 .venv/bin/python scripts/import_reconciled_source_ledgers.py rollback \
   --run-id reconciled-v1-official-source-fix-20260803
 .venv/bin/python scripts/import_reconciled_source_ledgers.py rollback \
@@ -272,6 +280,23 @@ Futu-only 32、冲突39、复核25、双方均缺12。租赁本金仍为0个已�
 `company_market_value_denominator_authorized=false`。run
 `share-capital-v1-20260803`只写官方来源事实，核心`share_classes`零项提升。
 
+### 普通股息v2扩展
+
+`dividend-v2`逐一覆盖56家公司最近最多五个完整财年，共277个位置。16个位置
+核清完整普通现金股息、实际支付状态、币种和官方年报页，其中14个为新增、2个
+重新校验v1事实；与v1合并并去重后，staging共有25个财年事实、覆盖14家公司。
+其余261个位置继续为`BLOCKED/null`：193个尚未核清全年组成，62个港股位置尚未
+核清币种或支付状态，6个没有官方完整总额。汇川技术FY2023/FY2024使用最终实施
+额而非预案额；导入器会重新读取每个官方PDF并校验根目录边界和SHA-256。受控run
+`dividend-v2-20260803`的56个post hash全部通过，重复预演为0变化。
+
+### 当前重新计算结果
+
+最后一次本地结构化release为`20260803T055150Z-3c686190af34`：67家公司全部
+`INVALID`，公司计算异常0。纳入本轮的56家公司已无来源记录缺失错误，但仍未
+取得足够的逐财年普通股息、稀释后总股本变化、公司级A/H实时市值分母、估值、
+增长和带有效期的结构化风险配置，因此没有产生Codex任务，也没有同步到Ali。
+
 ## 测试
 
 ```bash
@@ -281,6 +306,8 @@ cd /home/or1ngelinux/Liberty/webapp
   tests/test_source_ledger_backfill.py \
   tests/test_equity_bridge_candidates.py \
   tests/test_dividend_candidates.py \
+  tests/test_dividend_reconciliation_v2.py \
+  tests/test_import_dividends_v2.py \
   tests/test_official_cashflow_candidates.py
 ```
 
