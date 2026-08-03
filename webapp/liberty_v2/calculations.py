@@ -78,6 +78,28 @@ def effective_distribution(ordinary_dividend: Decimal | None, q_b: Decimal, elig
     return dividend + to_decimal(q_b) * to_decimal(eligible)
 
 
+def effective_distribution_v21(
+    ordinary_dividend: Decimal | None,
+    verified_eligible_buyback: Decimal | None = None,
+) -> Decimal:
+    """v2.1 distribution: confirmed cash dividend plus verified buyback only.
+
+    Missing buyback evidence is deliberately worth zero contribution.  The
+    caller keeps the original buyback metric null and exposes the conservative
+    basis/warning; there is no qB persistence multiplier in this definition.
+    """
+
+    if ordinary_dividend is None:
+        raise InsufficientDataError("ordinary dividend is missing")
+    dividend = to_decimal(ordinary_dividend)
+    if dividend < 0:
+        raise CalculationError("ordinary dividend cannot be negative")
+    buyback = ZERO if verified_eligible_buyback is None else to_decimal(verified_eligible_buyback)
+    if buyback < 0:
+        raise CalculationError("verified eligible buyback cannot be negative")
+    return dividend + buyback
+
+
 def decimal_median(values: Sequence[Decimal]) -> Decimal:
     if not values:
         raise InsufficientDataError("median requires at least one value")
@@ -244,6 +266,29 @@ def sustainable_distribution_non_financial(historical: Decimal, fcf5: Decimal) -
     return max(ZERO, min(historical_value, haircut * max(fcf_value, ZERO)))
 
 
+def sustainable_distribution_non_financial_v21(
+    historical: Decimal,
+    fcf_values: Sequence[Decimal],
+    *,
+    simplified_fcf: bool,
+) -> tuple[Decimal, Decimal]:
+    """Return ``(S, median_capacity)`` for the selected 2--5 year FCF window."""
+
+    historical_value = to_decimal(historical)
+    if historical_value < 0:
+        raise CalculationError("H cannot be negative")
+    values = [to_decimal(value) for value in fcf_values[:5]]
+    if len(values) < 2:
+        raise InsufficientDataError("v2.1 sustainable distribution requires two FCF years")
+    capacity = decimal_median(values)
+    haircut = decimal_value(
+        "formula_parameters",
+        "simplified_fcf_capacity_haircut" if simplified_fcf else "fcf_capacity_haircut",
+    )
+    sustainable = max(ZERO, min(historical_value, haircut * max(capacity, ZERO)))
+    return sustainable, capacity
+
+
 def robust_organic_growth(values_oldest_first: Sequence[Decimal]) -> Decimal:
     values = [to_decimal(value) for value in values_oldest_first]
     if len(values) < 2:
@@ -278,6 +323,23 @@ def conservative_growth_contribution(organic_growth: Decimal) -> Decimal:
     return positive + negative
 
 
+def conservative_growth_contribution_v21(
+    organic_growth: Decimal,
+    *,
+    year_count: int,
+) -> Decimal:
+    """Apply the v2.1 evidence-length cap while retaining negative growth."""
+
+    growth = to_decimal(organic_growth)
+    if growth <= 0:
+        return growth
+    if year_count >= 5:
+        return min(decimal_value("formula_parameters", "growth_positive_cap_5y"), growth)
+    if year_count >= 3:
+        return min(decimal_value("formula_parameters", "growth_positive_cap_3_4y"), growth)
+    return min(decimal_value("formula_parameters", "growth_positive_cap_2y"), growth)
+
+
 def valuation_drag(historical_median: Decimal | None, current: Decimal | None) -> Decimal:
     if historical_median is None or current is None:
         raise InsufficientDataError("comparable current and historical valuations are required")
@@ -305,6 +367,18 @@ def return_score(cr10: Decimal) -> Decimal:
         decimal_value("formula_parameters", "return_score_center")
         + decimal_value("formula_parameters", "return_score_points_per_1pct")
         * ((value - decimal_value("formula_parameters", "return_score_cr10_center")) / Decimal("0.01"))
+    )
+
+
+def return_score_v21(cr10: Decimal) -> Decimal:
+    return clip(
+        piecewise_score(
+            cr10,
+            [
+                (to_decimal(point), to_decimal(score))
+                for point, score in policy()["return_score_bands_v21"]
+            ],
+        )
     )
 
 
@@ -417,8 +491,55 @@ def weighted_score(values: Mapping[str, Decimal], weights: Mapping[str, Decimal]
 
 
 def payout_quality_score(components: Mapping[str, Decimal]) -> Decimal:
-    weights = decimal_mapping("score_weights", "payout_quality")
+    weights = decimal_mapping("score_weights", "payout_quality_legacy")
     return weighted_score(components, weights)
+
+
+def payout_quality_score_v21(components: Mapping[str, Decimal]) -> Decimal:
+    return weighted_score(components, decimal_mapping("score_weights", "payout_quality"))
+
+
+def recommendation_index_v21(
+    *,
+    return_score_value: Decimal,
+    payout_quality_value: Decimal,
+    business_durability: Decimal | None,
+    governance_capital_allocation: Decimal | None,
+) -> tuple[Decimal, bool]:
+    complete = business_durability is not None and governance_capital_allocation is not None
+    return (
+        weighted_score(
+            {
+                "return_score": to_decimal(return_score_value),
+                "payout_quality": to_decimal(payout_quality_value),
+                "business_durability": (
+                    decimal_value("recommendation_defaults_v21", "missing_business_durability")
+                    if business_durability is None
+                    else to_decimal(business_durability)
+                ),
+                "governance_capital_allocation": (
+                    decimal_value(
+                        "recommendation_defaults_v21",
+                        "missing_governance_capital_allocation",
+                    )
+                    if governance_capital_allocation is None
+                    else to_decimal(governance_capital_allocation)
+                ),
+            },
+            decimal_mapping("score_weights", "recommendation"),
+        ),
+        complete,
+    )
+
+
+def entry_risk_index_v21(
+    components: Mapping[str, Decimal],
+    *,
+    unknown_veto_uplift: Decimal = ZERO,
+    triggered_warning_uplift: Decimal = ZERO,
+) -> Decimal:
+    base = weighted_score(components, decimal_mapping("score_weights", "entry_risk"))
+    return clip(base + to_decimal(unknown_veto_uplift) + to_decimal(triggered_warning_uplift))
 
 
 def recommendation_index(
@@ -450,7 +571,7 @@ def recommendation_index(
 
 
 def entry_risk_index(components: Mapping[str, Decimal]) -> Decimal:
-    weights = decimal_mapping("score_weights", "entry_risk")
+    weights = decimal_mapping("score_weights", "entry_risk_legacy")
     return weighted_score(components, weights)
 
 

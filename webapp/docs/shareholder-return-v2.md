@@ -5,29 +5,31 @@
 `config/metric_definitions_v2.json` 是 API 和前端解释文字的唯一来源；
 `config/metric_policy_v2.json` 保存公式系数、阈值、评分权重、行业参数、对账
 容差和 Codex 固定模型。两者都锁定到
-`shareholder-return-v2.0.2`。代码启动及测试会拒绝版本不一致或解释字段缺失。
-v2.1第一阶段已新增SEEV、快变量覆盖和统一assessment契约；正式公式/指标注册表
-仍将在后续计算PR统一升至`shareholder-return-v2.1.0`，本阶段不提前改变线上值。
+`shareholder-return-v2.1.0`。代码启动及测试会拒绝版本不一致或解释字段缺失。
 
 核心实现位于 `liberty_v2/calculations.py`，金额、股本、价格、汇率、收益率和
 评分均使用 `Decimal`；float、NaN 和 Infinity 被拒绝。公式包括：
 
 ```text
-B_eligible = B_gross * min(1, max(0,N)/C)，C=0时为0
-X_t        = D_t + qB * B_eligible_t
+B_verified = B_gross * min(1, max(0,N)/C)，仅在现金、注销和稀释股本桥均验证时成立
+X_t        = D_t + B_verified_t；未验证回购贡献为0且原字段保持null
 R2         = 0.65*X_latest + 0.35*X_previous
 M5         = median(last <=5 X)
 T10        = winsorized mean(last <=10 X)
 H          = 按2年、3-4年、5-7年、>=8年分支的非对称保守额
-S          = max(0,min(H,0.90*max(FCF5,0)))（普通非金融企业）
-raw yield  = R2/company market cap
-SSY        = S/company market cap
-CR10       = SSY + g_cons + valuation_drag
+S          = min(H,0.90*median(FCF))；缺租赁本金时min(H,0.85*median(FCF_simple))
+SSY_s      = S/SEEV_s
+g_cons     = 连续5年正值最高3%，3—4年最高2%，2年不授予正值；负值完整计入
+CR_base    = SSY + g_cons
+CR10       = CR_base + valuation_adjustment（仅当前/历史估值同口径可比时）
 ```
 
 特别股息只进入 `distribution_history.special_dividend`，不影响 H。未注销、未形成
-稀释后净减少或被稀释抵消的回购不提高 SSY。RI、ERI、历史限分和 A/B/C/D 分类
-均由版本化策略计算；缺少业务耐久度或治理分时 RI 只保留受限内部参考，最高60。
+稀释后净减少或被稀释抵消的回购不提高 SSY。ReturnScore按0%至6%的固定分段点
+映射；PayoutQuality只包含40%覆盖、25%趋势、20%历史稳定和15%资产负债表。
+RI仍为45%回报、30%分配质量、15%业务耐久和10%治理；缺少后两项时评分层各用
+50，原字段保持`null/CONSERVATIVE_DEFAULT`，公司至少为`ESTIMATED`且不能进入A类。
+ERI不含数据质量权重，定性风险和不可比估值缺失时使用60并明确披露上浮项。
 
 ## 原始数据字典
 
@@ -101,16 +103,17 @@ Futu `totalMarketValue`只有在 `issuer_capital_structure_v1.json` 授权后才
 进入普通分红。拆并股、发行、转股、注销和稀释后股本变化必须在同一复权口径下
 对账。
 
-有机增长输入为带 `fiscal_year`、财年结束日和 `FULL_YEAR` 标志的连续年度序列；
-普通企业只接受标准化公司FCF，银行接受调整后利润/资本生成，保险接受自由盈余，
-不接受已含回购影响的每股增长。估值字段必须声明同口径可比：普通企业限
+增长优先从SelectedInputPlan实际采用的连续FCF序列派生；没有序列时`g_cons=0`
+并标记`CONSERVATIVE_DEFAULT`，不会把RI变为空。银行接受调整后利润/资本生成，
+保险接受自由盈余，不接受已含回购影响的每股增长。估值字段必须声明同口径可比：普通企业限
 `P_FCF/EV_EBIT`，银行限带可比ROE的 `P_B_WITH_ROE`，保险限 `P_EV` 或带ROE的
-P/B；否则估值拖累保持不可计算，绝不计正向扩张收益。
+P/B；只有当前PE/PB时估值调整保持不适用，CR10按`SSY+g_cons`发布并标记
+`ESTIMATED_WITHOUT_COMPARABLE_VALUATION`，绝不机械扣0.5%或计正向扩张收益。
 
 ## 行业适配器
 
-- `NonFinancialFCFAdapter`：经营现金流减资本开支减租赁本金；租赁本金无法拆分
-  时返回 PARTIAL 并披露简化口径。
+- `NonFinancialFCFAdapter/v2.1`：经营现金流减资本开支减租赁本金并采用90%容量；
+  租赁本金无法拆分时采用`OCF-Capex`、85%容量并披露`PROXY/SIMPLIFIED_FCF`。
 - `BankCapitalAdapter`：要求调整后利润、资本生成、CET1缓冲、RWA增长、NPL、
   拨备、信用成本、净息差。
 - `InsuranceSurplusAdapter`：要求自由盈余、可分配盈余、综合/核心偿付能力、
@@ -153,9 +156,10 @@ v2 公司层指标。生产回填需按本页原始数据契约补齐。
 
 ## 测试
 
-`tests/test_shareholder_v2_calculations.py` 覆盖25个黄金场景、不变量、来源契约、
+`tests/test_shareholder_v2_calculations.py` 覆盖v2.0兼容黄金场景、不变量、来源契约、
 A/H、行业适配器、自动否决、对账、拆并股及快慢缓存。价格变化只重算快变量；
 同一日慢输入哈希未变时复用 `cache/slow/<company_id>.json`，计算版本变化会强制
 失效旧缓存。`tests/test_v21_assessment.py`另行覆盖67家公司授权表、SEEV动态复核、
 行情新鲜度、非写入覆盖层、资产负债表直接/代理适配、统一输入计划和mixed-tier
-release合法性。
+release合法性；`tests/test_v21_calculations.py`覆盖无qB分配、85%简化FCF、增长
+长度上限、ReturnScore固定节点以及新的PayoutQuality/ERI权重。

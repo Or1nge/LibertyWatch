@@ -48,7 +48,7 @@ from liberty_v2.market_observation import (  # noqa: E402
     overlay_market_observation,
 )
 from liberty_v2.migration import migrate_v1  # noqa: E402
-from liberty_v2.pipeline import compute_company_snapshot  # noqa: E402
+from liberty_v2.pipeline import compute_company_snapshot_v21  # noqa: E402
 from liberty_v2.registry import load_metric_definitions, load_policy  # noqa: E402
 from liberty_v2.release import (  # noqa: E402
     AtomicReleaseBuilder,
@@ -57,7 +57,7 @@ from liberty_v2.release import (  # noqa: E402
     build_structured_release,
     verify_release,
 )
-from liberty_v2.slow_cache import load_or_compute_slow  # noqa: E402
+from liberty_v2.slow_cache import load_or_compute_slow_v21  # noqa: E402
 from liberty_v2.snapshot_store import LastValidSnapshotStore, atomic_write_json  # noqa: E402
 from liberty_v2.sync import AliReleaseSynchronizer, AliSyncConfig  # noqa: E402
 
@@ -271,15 +271,20 @@ def command_compute(args: argparse.Namespace) -> int:
                 observations=observations,
                 registry=registry,
             )
-            slow, cache_hit = load_or_compute_slow(
+            slow, cache_hit = load_or_compute_slow_v21(
                 raw,
+                assessment,
                 paths()["slow_cache"] / f"{company_id}.json",
                 on_date=now.date(),
                 force=args.force_slow,
             )
             cache_hits += int(cache_hit)
-            candidate = compute_company_snapshot(raw, now=now, slow_variables=slow)
-            candidate["readiness_assessment"] = assessment.public_dict()
+            candidate = compute_company_snapshot_v21(
+                raw,
+                assessment,
+                now=now,
+                slow_variables=slow,
+            )
             companies.append(valid_store.select_publishable(candidate))
         except Exception as error:
             raw_id = str((raw or {}).get("company_id") or "")
@@ -297,8 +302,20 @@ def command_compute(args: argparse.Namespace) -> int:
                 "calculation_version": CALCULATION_VERSION,
                 "company_id": company_id,
                 "company_name": str((raw or {}).get("company_name") or company_id),
-                "data_status": "INVALID",
+                "data_status": "PARTIAL",
+                "data_tier": "BLOCKED",
+                "data_confidence": {"total": 0, "domains": {}, "caveats": []},
+                "freshness": "STALE_LAST_GOOD",
                 "update_status": "BLOCKED",
+                "warnings": [],
+                "blockers": ["INPUT_OR_CALCULATION_FAILURE"],
+                "metrics": {},
+                "scores": {},
+                "source_summary": {
+                    "required_field_count": 0,
+                    "missing_field_ids": [],
+                    "invalid_field_ids": [],
+                },
                 "validation_errors": [public_error],
                 "calculated_at": now.isoformat(),
             }
@@ -306,13 +323,17 @@ def command_compute(args: argparse.Namespace) -> int:
             failures.append({"company_id": company_id, "error": str(error)[:500]})
         company_ids.add(company_id)
     status_counts: dict[str, int] = {}
+    tier_counts: dict[str, int] = {}
     for company in companies:
         status = str(company.get("data_status") or "INVALID")
         status_counts[status] = status_counts.get(status, 0) + 1
+        tier = str(company.get("data_tier") or "BLOCKED")
+        tier_counts[tier] = tier_counts.get(tier, 0) + 1
     pipeline = runtime_status(
         {
             "last_structured_calculation_at": now.isoformat(),
             "company_status_counts": status_counts,
+            "company_tier_counts": tier_counts,
             "slow_cache_hits": cache_hits,
             "slow_cache_misses": len(inputs) - cache_hits,
             "failed_company_count": len(failures),
@@ -329,6 +350,7 @@ def command_compute(args: argparse.Namespace) -> int:
             "release": release.name,
             "company_count": len(companies),
             "status_counts": status_counts,
+            "tier_counts": tier_counts,
             "slow_cache_hits": cache_hits,
             "company_failures": failures,
         }

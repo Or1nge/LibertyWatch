@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
 
+from .assessment import assess_release_records
 from .constants import CALCULATION_VERSION, METRIC_DEFINITION_VERSION, SCHEMA_VERSION
 
 
@@ -226,11 +227,17 @@ def build_structured_release(
         or len(identifiers) != len(set(identifiers))
     ):
         raise ReleaseError("company IDs must be safe and unique")
+    release_assessment = assess_release_records(companies)
+    if release_assessment.validity.value != "VALID_RELEASE":
+        raise ReleaseError(
+            "structured release rejected: " + ",".join(release_assessment.errors)
+        )
     index = {
         "schema_version": SCHEMA_VERSION,
         "calculation_version": CALCULATION_VERSION,
         "metric_definition_version": METRIC_DEFINITION_VERSION,
         "company_count": len(companies),
+        "release_validity": release_assessment.validity.value,
         "companies": [
             {
                 "company_id": company["company_id"],
@@ -239,8 +246,14 @@ def build_structured_release(
                 "as_of_date": company.get("as_of_date"),
                 "price_timestamp": company.get("price_timestamp"),
                 "data_status": company.get("data_status"),
+                "data_tier": company.get("data_tier"),
+                "data_confidence": company.get("data_confidence", {}),
+                "freshness": company.get("freshness"),
                 "update_status": company.get("update_status"),
+                "warnings": company.get("warnings", []),
+                "blockers": company.get("blockers", []),
                 "metrics": company.get("metrics", {}),
+                "metric_bases": company.get("metric_bases", {}),
                 "security_metrics": company.get("security_metrics", {}),
                 "scores": company.get("scores", {}),
                 "classification": company.get("classification"),
@@ -248,6 +261,8 @@ def build_structured_release(
                 "veto_flags": company.get("veto_flags", []),
                 "analysis_status": company.get("analysis_status", {}),
                 "coverage_adapter": company.get("coverage_adapter", {}),
+                "selected_input_plan": company.get("selected_input_plan", {}),
+                "source_summary": company.get("source_summary", {}),
             }
             for company in companies
         ],
@@ -267,6 +282,7 @@ def build_structured_release(
             "calculation_version": CALCULATION_VERSION,
             "metric_definition_version": METRIC_DEFINITION_VERSION,
             "company_count": len(companies),
+            "release_validity": release_assessment.validity.value,
         },
         activate=activate,
     )

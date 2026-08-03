@@ -9,8 +9,14 @@ from typing import Any, Mapping
 
 from .analysis.prompt_renderer import canonical_json_bytes
 from .constants import CALCULATION_VERSION
-from .models import CoverageResult, CoverageStatus, VetoFlag
-from .pipeline import SlowVariables, compute_slow_variables
+from .assessment import CompanyAssessment
+from .models import CoverageResult, CoverageStatus, VetoFlag, jsonable
+from .pipeline import (
+    SlowVariables,
+    V21SlowVariables,
+    compute_slow_variables,
+    compute_slow_variables_v21,
+)
 from .snapshot_store import atomic_write_json
 
 
@@ -213,4 +219,119 @@ def load_or_compute_slow(
             pass
     slow = compute_slow_variables(raw, on_date=on_date)
     atomic_write_json(cache_path, _serialize(slow, digest))
+    return slow, False
+
+
+def _serialize_v21(slow: V21SlowVariables, input_hash: str) -> dict[str, Any]:
+    return {
+        "calculation_version": CALCULATION_VERSION,
+        "slow_input_hash": input_hash,
+        "v21": True,
+        "distribution_history": jsonable(slow.distribution_history),
+        "annual_effective_distributions": jsonable(slow.annual_effective_distributions),
+        "r2": jsonable(slow.r2),
+        "m5": jsonable(slow.m5),
+        "t10": jsonable(slow.t10),
+        "historical_distribution": jsonable(slow.historical_distribution),
+        "fcf_history": jsonable(slow.fcf_history),
+        "simplified_fcf": slow.simplified_fcf,
+        "fcf_capacity": jsonable(slow.fcf_capacity),
+        "sustainable_distribution": jsonable(slow.sustainable_distribution),
+        "coverage_ratio": jsonable(slow.coverage_ratio),
+        "organic_growth": jsonable(slow.organic_growth),
+        "conservative_growth": jsonable(slow.conservative_growth),
+        "coverage_component": jsonable(slow.coverage_component),
+        "trend_component": jsonable(slow.trend_component),
+        "stability_component": jsonable(slow.stability_component),
+        "balance_component": jsonable(slow.balance_component),
+        "payout_quality": jsonable(slow.payout_quality),
+        "business_durability": jsonable(slow.business_durability),
+        "governance": jsonable(slow.governance),
+        "entry_risk_index": jsonable(slow.entry_risk_index),
+        "risk_components": jsonable(slow.risk_components),
+        "veto_flags": jsonable(slow.veto_flags),
+        "unknown_veto_uplift": jsonable(slow.unknown_veto_uplift),
+        "warnings": list(slow.warnings),
+        "errors": list(slow.errors),
+    }
+
+
+def _deserialize_v21(value: Mapping[str, Any]) -> V21SlowVariables:
+    def d(key: str) -> Decimal | None:
+        return _decimal(value.get(key))
+
+    return V21SlowVariables(
+        distribution_history=tuple(value.get("distribution_history", [])),
+        annual_effective_distributions=tuple(
+            (int(year), Decimal(amount))
+            for year, amount in value.get("annual_effective_distributions", [])
+        ),
+        r2=d("r2"),
+        m5=d("m5"),
+        t10=d("t10"),
+        historical_distribution=d("historical_distribution"),
+        fcf_history=tuple(
+            (int(year), Decimal(amount))
+            for year, amount in value.get("fcf_history", [])
+        ),
+        simplified_fcf=bool(value.get("simplified_fcf")),
+        fcf_capacity=d("fcf_capacity"),
+        sustainable_distribution=d("sustainable_distribution"),
+        coverage_ratio=d("coverage_ratio"),
+        organic_growth=d("organic_growth"),
+        conservative_growth=d("conservative_growth") or Decimal("0"),
+        coverage_component=d("coverage_component"),
+        trend_component=d("trend_component"),
+        stability_component=d("stability_component"),
+        balance_component=d("balance_component"),
+        payout_quality=d("payout_quality"),
+        business_durability=d("business_durability"),
+        governance=d("governance"),
+        entry_risk_index=d("entry_risk_index"),
+        risk_components={
+            str(key): Decimal(str(item))
+            for key, item in value.get("risk_components", {}).items()
+        },
+        veto_flags=tuple(
+            VetoFlag(
+                code=str(item["code"]),
+                severity=str(item["severity"]),
+                triggered=bool(item["triggered"]),
+                evidence_fields=tuple(item.get("evidence_fields", [])),
+                message_zh=str(item["message_zh"]),
+                source=item.get("source"),
+                as_of_date=date.fromisoformat(item["as_of_date"])
+                if item.get("as_of_date")
+                else None,
+            )
+            for item in value.get("veto_flags", [])
+        ),
+        unknown_veto_uplift=d("unknown_veto_uplift") or Decimal("0"),
+        warnings=tuple(value.get("warnings", [])),
+        errors=tuple(value.get("errors", [])),
+    )
+
+
+def load_or_compute_slow_v21(
+    raw: Mapping[str, Any],
+    assessment: CompanyAssessment,
+    cache_path: Path,
+    *,
+    on_date: date,
+    force: bool = False,
+) -> tuple[V21SlowVariables, bool]:
+    digest = slow_input_hash(raw, on_date)
+    if not force and cache_path.is_file():
+        try:
+            cached = json.loads(cache_path.read_text(encoding="utf-8"))
+            if (
+                cached.get("v21") is True
+                and cached.get("calculation_version") == CALCULATION_VERSION
+                and cached.get("slow_input_hash") == digest
+            ):
+                return _deserialize_v21(cached), True
+        except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+            pass
+    slow = compute_slow_variables_v21(raw, assessment, on_date=on_date)
+    atomic_write_json(cache_path, _serialize_v21(slow, digest))
     return slow, False
