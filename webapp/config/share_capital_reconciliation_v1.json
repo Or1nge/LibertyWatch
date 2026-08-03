@@ -1,0 +1,365 @@
+{
+  "schema_version": "share-capital-reconciliation-review-v1.0",
+  "policy": {
+    "candidate_manifest_sha256": "f2aef6511720d216827aa38ebf66f6eb50d56a657a07d3d51fac824db5fc5368",
+    "expected_company_count": 56,
+    "expected_latest_five_company_years": 277,
+    "expected_material_class_count": 60,
+    "expected_accepted_current_class_facts": 21,
+    "expected_rights_verified_class_facts": 17,
+    "production_write": false,
+    "issued_share_scope": "Exact issued ordinary-share facts are legal-share counts, not diluted total shares.",
+    "diluted_share_rule": "Every diluted_total_shares and diluted_net_share_reduction field remains null until an official endpoint diluted-share bridge is reconciled.",
+    "company_denominator_rule": "This bundle never authorizes company market value or shareholder-yield calculation because price freshness, FX and all material class rights are outside its scope.",
+    "cross_class_rule": "A/H and other multi-class issuers require one explicit material-class row per legal ordinary-share class; a company total or one listed class cannot stand in for the others.",
+    "prohibited_derivations": [
+      "gross_buyback",
+      "gross_cancelled_buyback",
+      "net_reduction_factor",
+      "B_eligible"
+    ]
+  },
+  "direct_exact_current_company_ids": [
+    "A600406",
+    "HK0322",
+    "HK0669",
+    "SH600298",
+    "SH600426",
+    "SH603899",
+    "SZ000423",
+    "SZ002003",
+    "SZ002028",
+    "SZ002032",
+    "SZ002138",
+    "SZ002158",
+    "SZ002507",
+    "SZ002595",
+    "SZ300285"
+  ],
+  "material_class_overrides": {
+    "SH600600": [
+      {
+        "security_id": "SH600600",
+        "legal_share_class_id": "A_ORDINARY",
+        "share_class": "A",
+        "material": true
+      },
+      {
+        "security_id": "HK00168",
+        "legal_share_class_id": "H_ORDINARY",
+        "share_class": "H",
+        "material": true
+      }
+    ],
+    "SH600660": [
+      {
+        "security_id": "SH600660",
+        "legal_share_class_id": "A_ORDINARY",
+        "share_class": "A",
+        "material": true
+      },
+      {
+        "security_id": "HK03606",
+        "legal_share_class_id": "H_ORDINARY",
+        "share_class": "H",
+        "material": true
+      }
+    ],
+    "SH688235": [
+      {
+        "security_id": "SH688235",
+        "legal_share_class_id": "A_ORDINARY",
+        "share_class": "A",
+        "material": true
+      },
+      {
+        "security_id": "HK06160",
+        "legal_share_class_id": "OVERSEAS_ORDINARY",
+        "share_class": "OVERSEAS_ORDINARY",
+        "material": true,
+        "representation_note": "HK 06160 and Nasdaq ADS represent the same overseas ordinary-share class and must not be double-counted."
+      }
+    ],
+    "SZ002352": [
+      {
+        "security_id": "SZ002352",
+        "legal_share_class_id": "A_ORDINARY",
+        "share_class": "A",
+        "material": true
+      },
+      {
+        "security_id": "HK06936",
+        "legal_share_class_id": "H_ORDINARY",
+        "share_class": "H",
+        "material": true
+      }
+    ]
+  },
+  "accepted_multi_class_total_expectations": {
+    "SH600600": "1364195121",
+    "SH600660": "2609743532",
+    "SZ002352": "5039430409"
+  },
+  "same_underlying_listing_notes": [
+    {
+      "company_id": "HK1179",
+      "representations": ["HK1179", "NASDAQ_HTHT_ADS"],
+      "rule": "One legal ordinary-share class; ADS and HK listings must not be counted as two share classes."
+    },
+    {
+      "company_id": "HK2057",
+      "representations": ["HK2057", "NYSE_ZTO_ADS"],
+      "rule": "One legal ordinary-share class; ADS and HK listings must not be counted as two share classes."
+    },
+    {
+      "company_id": "HK9987",
+      "representations": ["HK9987", "NYSE_YUMC"],
+      "rule": "One legal ordinary-share class; the fungible US/HK listings must not be counted twice."
+    },
+    {
+      "company_id": "HK2020",
+      "representations": ["HKD_COUNTER", "RMB_COUNTER"],
+      "rule": "Dual-currency trading counters are one legal ordinary-share class and must not be counted twice."
+    }
+  ],
+  "manual_current_facts": [
+    {
+      "fact_id": "SH600600-FY2025-A",
+      "company_id": "SH600600",
+      "company_name": "青岛啤酒",
+      "fiscal_year": 2025,
+      "security_id": "SH600600",
+      "legal_share_class_id": "A_ORDINARY",
+      "share_class": "A",
+      "issued_shares": "709125943",
+      "decision": "ACCEPT",
+      "derivation": "DIRECT_OFFICIAL_TABLE_ROW",
+      "rights_verified": false,
+      "economic_rights_factor": null,
+      "source_expectation_id": "SH600600-FY2025",
+      "evidence_checks": [
+        {
+          "page": 145,
+          "required_fragments": [
+            "人民币普通股(注)709,127,610-1,667(1,667)709,125,943",
+            "股份总数1,364,196,788-1,667(1,667)1,364,195,121"
+          ]
+        }
+      ]
+    },
+    {
+      "fact_id": "SH600600-FY2025-H",
+      "company_id": "SH600600",
+      "company_name": "青岛啤酒",
+      "fiscal_year": 2025,
+      "security_id": "HK00168",
+      "legal_share_class_id": "H_ORDINARY",
+      "share_class": "H",
+      "issued_shares": "655069178",
+      "decision": "ACCEPT",
+      "derivation": "DIRECT_OFFICIAL_TABLE_ROW",
+      "rights_verified": false,
+      "economic_rights_factor": null,
+      "source_expectation_id": "SH600600-FY2025",
+      "evidence_checks": [
+        {
+          "page": 145,
+          "required_fragments": [
+            "境外上市的外资股655,069,178---655,069,178",
+            "股份总数1,364,196,788-1,667(1,667)1,364,195,121"
+          ]
+        }
+      ]
+    },
+    {
+      "fact_id": "SH600660-FY2025-A",
+      "company_id": "SH600660",
+      "company_name": "福耀玻璃",
+      "fiscal_year": 2025,
+      "security_id": "SH600660",
+      "legal_share_class_id": "A_ORDINARY",
+      "share_class": "A",
+      "issued_shares": "2002986332",
+      "decision": "ACCEPT",
+      "derivation": "DIRECT_OFFICIAL_NARRATIVE",
+      "rights_verified": true,
+      "economic_rights_factor": "1",
+      "source_expectation_id": "SH600660-FY2025",
+      "evidence_checks": [
+        {
+          "page": 95,
+          "required_fragments": [
+            "人民币普通股A股(以下简称“A股”)在上海证券交易所挂牌上市交易，共计2,002,986,332股",
+            "发行后本公司总股本增加至2,609,743,532股"
+          ]
+        },
+        {
+          "page": 2,
+          "required_fragments": [
+            "本公司A股股东和H股股东派发现金股利，每股分配现金股利人民币1.20元"
+          ]
+        }
+      ]
+    },
+    {
+      "fact_id": "SH600660-FY2025-H",
+      "company_id": "SH600660",
+      "company_name": "福耀玻璃",
+      "fiscal_year": 2025,
+      "security_id": "HK03606",
+      "legal_share_class_id": "H_ORDINARY",
+      "share_class": "H",
+      "issued_shares": "606757200",
+      "decision": "ACCEPT",
+      "derivation": "OFFICIAL_ARITHMETIC_IDENTITY:439679600+65951600+101126000",
+      "rights_verified": true,
+      "economic_rights_factor": "1",
+      "source_expectation_id": "SH600660-FY2025",
+      "evidence_checks": [
+        {
+          "page": 95,
+          "required_fragments": [
+            "H股”)439,679,600股并超额配售境外上市外资股65,951,600股",
+            "配售发行101,126,000股H股",
+            "发行后本公司总股本增加至2,609,743,532股"
+          ]
+        },
+        {
+          "page": 2,
+          "required_fragments": [
+            "本公司A股股东和H股股东派发现金股利，每股分配现金股利人民币1.20元"
+          ]
+        }
+      ]
+    },
+    {
+      "fact_id": "SZ002352-FY2025-A",
+      "company_id": "SZ002352",
+      "company_name": "顺丰控股",
+      "fiscal_year": 2025,
+      "security_id": "SZ002352",
+      "legal_share_class_id": "A_ORDINARY",
+      "share_class": "A",
+      "issued_shares": "4799430409",
+      "decision": "ACCEPT",
+      "derivation": "OFFICIAL_ARITHMETIC_IDENTITY:29418430+4770011979",
+      "rights_verified": false,
+      "economic_rights_factor": null,
+      "source_expectation_id": "SZ002352-FY2025",
+      "evidence_checks": [
+        {
+          "page": 138,
+          "required_fragments": [
+            "一、有限售条件股份27,426,7350.55%",
+            "1,991,6951,991,69529,418,4300.58%",
+            "1、人民币普通股4,788,760,24896.04%6,513,784––-25,262,053-18,748,2694,770,011,97994.65%",
+            "三、股份总数4,986,186,983100.00%76,513,784––-23,270,35853,243,4265,039,430,409100.00%"
+          ]
+        }
+      ]
+    },
+    {
+      "fact_id": "SZ002352-FY2025-H",
+      "company_id": "SZ002352",
+      "company_name": "顺丰控股",
+      "fiscal_year": 2025,
+      "security_id": "HK06936",
+      "legal_share_class_id": "H_ORDINARY",
+      "share_class": "H",
+      "issued_shares": "240000000",
+      "decision": "ACCEPT",
+      "derivation": "DIRECT_OFFICIAL_TABLE_ROW",
+      "rights_verified": false,
+      "economic_rights_factor": null,
+      "source_expectation_id": "SZ002352-FY2025",
+      "evidence_checks": [
+        {
+          "page": 138,
+          "required_fragments": [
+            "2、境外上市外资股170,000,0003.41%70,000,000–––70,000,000240,000,0004.76%",
+            "三、股份总数4,986,186,983100.00%76,513,784––-23,270,35853,243,4265,039,430,409100.00%"
+          ]
+        }
+      ]
+    }
+  ],
+  "review_only_cases": [
+    {
+      "case_id": "SH688235-FY2025-SUBSIDIARY-HELD-SHARES",
+      "company_id": "SH688235",
+      "company_name": "百济神州",
+      "fiscal_year": 2025,
+      "decision": "REVIEW",
+      "reason": "The official class table excludes 133,000,000 subsidiary-held award shares that legally exist but carry no votes or dividends while held. Legal issued shares and economically outstanding shares therefore have different scopes.",
+      "reported_table_class_candidates": [
+        {
+          "security_id": "SH688235",
+          "legal_share_class_id": "A_ORDINARY",
+          "issued_shares_candidate": "115055260"
+        },
+        {
+          "security_id": "HK06160",
+          "legal_share_class_id": "OVERSEAS_ORDINARY",
+          "issued_shares_candidate": "1326020358"
+        }
+      ],
+      "source_expectation_id": "SH688235-FY2025",
+      "evidence_checks": [
+        {
+          "page": 164,
+          "required_fragments": [
+            "人民币普通股115,055,260",
+            "其他1,272,312,44491.7153,707,914---53,707,9141,326,020,35892.02",
+            "股份总数1,387,367,704100.0053,707,914---53,707,9141,441,075,618100.00"
+          ]
+        },
+        {
+          "page": 165,
+          "required_fragments": [
+            "全资子公司发行了133,000,000股公司股份",
+            "不会行使该等股份所附的任何表决权或就该等股份收取任何股息",
+            "上表中的公司股份总数不包括公司的全资子公司仍持有的该等公司股份"
+          ]
+        }
+      ]
+    }
+  ],
+  "source_expectations": [
+    {
+      "source_expectation_id": "SH600600-FY2025",
+      "company_id": "SH600600",
+      "fiscal_year": 2025,
+      "source_document": "青岛啤酒股份有限公司2025年年度报告",
+      "sha256": "0d7e078c96df8cccaa6a4d835532e39d6ffb7ce7ccc0c8e5be72e62b25bb1a72",
+      "pdf_pages": 211,
+      "identity_fragments": ["青岛啤酒股份有限公司", "2025年年度报告"]
+    },
+    {
+      "source_expectation_id": "SH600660-FY2025",
+      "company_id": "SH600660",
+      "fiscal_year": 2025,
+      "source_document": "福耀玻璃2025年年度报告",
+      "sha256": "c4e8428c7af7f16cc81f8980ae5562baf7ab9cc44b91165203eaa88ae0c05b25",
+      "pdf_pages": 189,
+      "identity_fragments": ["福耀玻璃工业集团股份有限公司", "2025年年度报告"]
+    },
+    {
+      "source_expectation_id": "SZ002352-FY2025",
+      "company_id": "SZ002352",
+      "fiscal_year": 2025,
+      "source_document": "2025年年度报告",
+      "sha256": "240c05b80783bc350ba9fedf22487bc4ed0e370ccd3943ed6c2736de06050ae2",
+      "pdf_pages": 283,
+      "identity_fragments": ["顺丰控股股份有限公司", "2025年度报告"]
+    },
+    {
+      "source_expectation_id": "SH688235-FY2025",
+      "company_id": "SH688235",
+      "fiscal_year": 2025,
+      "source_document": "百济神州有限公司2025年年度报告",
+      "sha256": "1aac5babf0c1eff4eac66d7d45b47e337c9520c42d98c5d55b153ff9a7f4c660",
+      "pdf_pages": 270,
+      "identity_fragments": ["百济神州有限公司", "2025年年度报告"]
+    }
+  ]
+}

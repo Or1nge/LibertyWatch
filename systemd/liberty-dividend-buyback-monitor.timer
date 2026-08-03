@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Liberty dividend and buyback monitor every two hours
+
+[Timer]
+OnBootSec=10min
+OnUnitInactiveSec=2h
+RandomizedDelaySec=5min
+AccuracySec=1min
+Unit=liberty-dividend-buyback-monitor.service
+
+[Install]
+WantedBy=timers.target

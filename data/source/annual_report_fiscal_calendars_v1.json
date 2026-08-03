@@ -1,0 +1,27 @@
+{
+  "schema_version": "annual-report-fiscal-calendar-v1",
+  "as_of_date": "2026-08-02",
+  "description": "年报回填的财年结束日规则。fiscal_year统一表示财年结束年份；PDF文本能识别到明确结束日时，以PDF证据覆盖默认值并记录验证状态。",
+  "defaults": {
+    "CN": {
+      "fiscal_year_end_month_day": "12-31",
+      "status": "MARKET_DEFAULT_REQUIRES_DOCUMENT_VALIDATION",
+      "reason": "当前正式清单内A股发行人均按自然年披露；每份报告下载后仍尝试从正文核验。"
+    },
+    "HK": {
+      "fiscal_year_end_month_day": "12-31",
+      "status": "MARKET_DEFAULT_REQUIRES_DOCUMENT_VALIDATION",
+      "reason": "仅作为当前清单的保守默认；非12月年结必须显式覆盖，正文识别冲突时以正文为准。"
+    }
+  },
+  "company_overrides": {
+    "HK0179": {
+      "fiscal_year_end_month_day": "03-31",
+      "status": "VERIFIED_FROM_OFFICIAL_FILING_TITLES",
+      "source_name": "香港交易所披露易",
+      "source_url": "https://www1.hkexnews.hk/search/titlesearch.xhtml?lang=zh",
+      "as_of_date": "2026-08-02",
+      "reason": "德昌电机控股按3月31日年结；2025/26年度年报对应FY2026。"
+    }
+  }
+}

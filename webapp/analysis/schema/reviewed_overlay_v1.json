@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://liberty.invalid/schema/reviewed-overlay-v1.json",
+  "title": "Liberty deterministically reviewed Codex score overlay",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "company_id", "latest_analysis_id", "updated_at", "scores"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "company_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]{1,100}$"},
+    "latest_analysis_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]{8,100}$"},
+    "updated_at": {"type": "string", "format": "date-time"},
+    "scores": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "business_durability": {"$ref": "#/$defs/reviewedScore"},
+        "governance_capital_allocation": {"$ref": "#/$defs/reviewedScore"}
+      }
+    }
+  },
+  "$defs": {
+    "reviewedScore": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value", "source", "source_record", "as_of_date", "expires_at", "reason",
+        "rubric_version", "dimension_scores", "red_flags",
+        "analysis_id", "analysis_mode", "input_snapshot_hash", "prompt_version",
+        "model", "reasoning_effort", "produced_by_codex", "review_status", "reviewed_by"
+      ],
+      "properties": {
+        "value": {"type": "integer", "minimum": 0, "maximum": 100},
+        "source": {"type": "string", "format": "uri", "pattern": "^https?://", "maxLength": 2048},
+        "source_record": {"$ref": "#/$defs/sourceRecord"},
+        "as_of_date": {"type": "string", "format": "date"},
+        "expires_at": {"type": "string", "format": "date"},
+        "reason": {"type": "string", "minLength": 20, "maxLength": 1000, "pattern": "^[^<>]*$"},
+        "rubric_version": {"const": "qualitative-score-rubric-v1.0.0"},
+        "dimension_scores": {
+          "oneOf": [
+            {"$ref": "#/$defs/businessDurabilityDimensions"},
+            {"$ref": "#/$defs/governanceDimensions"}
+          ]
+        },
+        "red_flags": {
+          "type": "array", "uniqueItems": true, "maxItems": 4,
+          "items": {
+            "enum": [
+              "STRUCTURAL_DEMAND_DECLINE", "CORE_ASSET_EXPIRY_WITHIN_10Y",
+              "TECHNOLOGY_SUBSTITUTION_UNMITIGATED",
+              "AUDIT_OR_INTERNAL_CONTROL_MAJOR_DEFECT",
+              "CONTROLLING_SHAREHOLDER_MISAPPROPRIATION",
+              "MATERIAL_RELATED_PARTY_CONFLICT",
+              "REPEATED_VALUE_DESTRUCTIVE_ALLOCATION"
+            ]
+          }
+        },
+        "analysis_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]{8,100}$"},
+        "analysis_mode": {"enum": ["FULL_ENTRY_REVIEW", "URGENT_VETO_REVIEW", "MATERIAL_CHANGE_REVIEW", "PERIODIC_REFRESH"]},
+        "input_snapshot_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "prompt_version": {"type": "string", "minLength": 1, "maxLength": 80},
+        "model": {"const": "gpt-5.6-sol"},
+        "reasoning_effort": {"const": "xhigh"},
+        "produced_by_codex": {"const": true},
+        "review_status": {"const": "DETERMINISTICALLY_ACCEPTED"},
+        "reviewed_by": {"const": "deterministic-overlay-validator-v1"}
+      }
+    },
+    "businessDurabilityDimensions": {
+      "type": "object", "additionalProperties": false,
+      "required": ["demand_resilience", "competitive_position", "substitution_and_asset_life", "capital_intensity_and_cash_conversion"],
+      "properties": {
+        "demand_resilience": {"type": "integer", "minimum": 0, "maximum": 100},
+        "competitive_position": {"type": "integer", "minimum": 0, "maximum": 100},
+        "substitution_and_asset_life": {"type": "integer", "minimum": 0, "maximum": 100},
+        "capital_intensity_and_cash_conversion": {"type": "integer", "minimum": 0, "maximum": 100}
+      }
+    },
+    "governanceDimensions": {
+      "type": "object", "additionalProperties": false,
+      "required": ["shareholder_alignment", "capital_allocation_discipline", "disclosure_and_internal_controls", "related_party_and_minority_protection"],
+      "properties": {
+        "shareholder_alignment": {"type": "integer", "minimum": 0, "maximum": 100},
+        "capital_allocation_discipline": {"type": "integer", "minimum": 0, "maximum": 100},
+        "disclosure_and_internal_controls": {"type": "integer", "minimum": 0, "maximum": 100},
+        "related_party_and_minority_protection": {"type": "integer", "minimum": 0, "maximum": 100}
+      }
+    },
+    "sourceRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "publisher", "url", "publish_date", "event_date", "supports"],
+      "properties": {
+        "title": {"type": "string", "minLength": 1, "maxLength": 300},
+        "publisher": {"type": "string", "minLength": 1, "maxLength": 160},
+        "url": {"type": "string", "format": "uri", "pattern": "^https?://"},
+        "publish_date": {"type": "string", "format": "date"},
+        "event_date": {"type": "string", "format": "date"},
+        "supports": {"type": "string", "minLength": 1, "maxLength": 500}
+      }
+    }
+  }
+}

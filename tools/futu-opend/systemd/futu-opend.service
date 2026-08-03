@@ -1,0 +1,21 @@
+[Unit]
+Description=Futu OpenD headless quote gateway
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/or1ngelinux/Liberty/tools/futu-opend/headless
+ExecStart=/home/or1ngelinux/Liberty/tools/futu-opend/headless/start.sh
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=20
+KillSignal=SIGTERM
+StandardOutput=null
+StandardError=journal
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,224 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://liberty.invalid/schema/risk-analysis-output-v1.json",
+  "title": "Liberty Codex risk analysis output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "prompt_version", "model", "reasoning_effort",
+    "analysis_id", "analysis_mode", "company_id", "company_name", "ticker",
+    "market", "as_of_date", "input_snapshot_hash", "calculation_version",
+    "trigger", "data_issue_detected", "data_issue_notes",
+    "one_sentence_conclusion", "crossing_driver", "verdict", "risk_overlay",
+    "hard_veto_supported", "hard_veto_reasons", "top_risks",
+    "hidden_opportunities", "historical_analogs", "scenarios",
+    "facts_that_would_change_the_view", "next_review_triggers", "sources",
+    "reviewed_overlay_candidates",
+    "report_markdown"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.1"},
+    "prompt_version": {"type": "string", "minLength": 1, "maxLength": 80},
+    "model": {"const": "gpt-5.6-sol"},
+    "reasoning_effort": {"const": "xhigh"},
+    "analysis_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]{8,100}$"},
+    "analysis_mode": {
+      "enum": ["FULL_ENTRY_REVIEW", "URGENT_VETO_REVIEW", "MATERIAL_CHANGE_REVIEW", "PERIODIC_REFRESH"]
+    },
+    "company_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]{1,100}$"},
+    "company_name": {"type": "string", "minLength": 1, "maxLength": 160},
+    "ticker": {"type": "string", "minLength": 1, "maxLength": 40},
+    "market": {"enum": ["CN", "HK", "US", "OTHER"]},
+    "as_of_date": {"type": "string", "format": "date"},
+    "input_snapshot_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "calculation_version": {"type": "string", "minLength": 1, "maxLength": 80},
+    "trigger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "summary"],
+      "properties": {
+        "type": {"type": "string", "minLength": 1, "maxLength": 100},
+        "summary": {"type": "string", "minLength": 1, "maxLength": 800}
+      }
+    },
+    "data_issue_detected": {"type": "boolean"},
+    "data_issue_notes": {
+      "type": "array", "maxItems": 10,
+      "items": {"type": "string", "minLength": 1, "maxLength": 600}
+    },
+    "one_sentence_conclusion": {"type": "string", "minLength": 1, "maxLength": 500},
+    "crossing_driver": {"enum": ["A", "B", "C", "D", "E", "F"]},
+    "verdict": {"enum": ["REJECT", "WATCH", "SMALL_PILOT", "SCALE_IN"]},
+    "risk_overlay": {"enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]},
+    "hard_veto_supported": {"type": "boolean"},
+    "hard_veto_reasons": {
+      "type": "array", "maxItems": 10,
+      "items": {"type": "string", "minLength": 1, "maxLength": 500}
+    },
+    "top_risks": {
+      "type": "array", "minItems": 1, "maxItems": 5,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["risk", "probability", "impact", "time_horizon", "evidence", "monitoring_indicators", "falsification_condition"],
+        "properties": {
+          "risk": {"type": "string", "minLength": 1, "maxLength": 400},
+          "probability": {"enum": ["LOW", "MEDIUM", "HIGH"]},
+          "impact": {"enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]},
+          "time_horizon": {"enum": ["<1Y", "1-3Y", "3-5Y", "5-10Y"]},
+          "evidence": {"type": "array", "maxItems": 8, "items": {"type": "string", "minLength": 1, "maxLength": 500}},
+          "monitoring_indicators": {"type": "array", "maxItems": 8, "items": {"type": "string", "minLength": 1, "maxLength": 300}},
+          "falsification_condition": {"type": "string", "minLength": 1, "maxLength": 500}
+        }
+      }
+    },
+    "hidden_opportunities": {
+      "type": "array", "maxItems": 3,
+      "items": {"type": "string", "minLength": 1, "maxLength": 500}
+    },
+    "historical_analogs": {
+      "type": "array", "maxItems": 2,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["company", "country", "comparison_period", "similarity_score", "subsequent_result", "transferable_lessons", "analogy_limitations"],
+        "properties": {
+          "company": {"type": "string", "minLength": 1, "maxLength": 160},
+          "country": {"enum": ["US", "JP"]},
+          "comparison_period": {"type": "string", "minLength": 1, "maxLength": 100},
+          "similarity_score": {"type": "integer", "minimum": 0, "maximum": 100},
+          "subsequent_result": {"type": "string", "minLength": 1, "maxLength": 600},
+          "transferable_lessons": {"type": "array", "maxItems": 6, "items": {"type": "string", "minLength": 1, "maxLength": 400}},
+          "analogy_limitations": {"type": "array", "minItems": 1, "maxItems": 6, "items": {"type": "string", "minLength": 1, "maxLength": 400}}
+        }
+      }
+    },
+    "scenarios": {
+      "type": "object", "additionalProperties": false,
+      "required": ["bear", "base", "bull"],
+      "properties": {
+        "bear": {"$ref": "#/$defs/bearScenario"},
+        "base": {"$ref": "#/$defs/scenario"},
+        "bull": {"$ref": "#/$defs/scenario"}
+      }
+    },
+    "facts_that_would_change_the_view": {
+      "type": "array", "minItems": 1, "maxItems": 10,
+      "items": {"type": "string", "minLength": 1, "maxLength": 500}
+    },
+    "next_review_triggers": {
+      "type": "array", "minItems": 1, "maxItems": 10,
+      "items": {"type": "string", "minLength": 1, "maxLength": 500}
+    },
+    "sources": {
+      "type": "array", "minItems": 1, "maxItems": 20,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["title", "publisher", "url", "publish_date", "event_date", "supports"],
+        "properties": {
+          "title": {"type": "string", "minLength": 1, "maxLength": 300},
+          "publisher": {"type": "string", "minLength": 1, "maxLength": 160},
+          "url": {"type": "string", "format": "uri", "pattern": "^https?://"},
+          "publish_date": {"type": "string", "format": "date"},
+          "event_date": {"type": "string", "format": "date"},
+          "supports": {"type": "string", "minLength": 1, "maxLength": 500}
+        }
+      }
+    },
+    "reviewed_overlay_candidates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["business_durability", "governance_capital_allocation"],
+      "properties": {
+        "business_durability": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/reviewedScoreCandidate"}
+          ]
+        },
+        "governance_capital_allocation": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/reviewedScoreCandidate"}
+          ]
+        }
+      }
+    },
+    "report_markdown": {
+      "type": "string", "minLength": 1, "maxLength": 8000,
+      "pattern": "^[^<>]*$"
+    }
+  },
+  "$defs": {
+    "reviewedScoreCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value", "source", "as_of_date", "expires_at", "reason",
+        "rubric_version", "dimension_scores", "red_flags"
+      ],
+      "properties": {
+        "value": {"type": "integer", "minimum": 0, "maximum": 100},
+        "source": {"type": "string", "format": "uri", "pattern": "^https?://", "maxLength": 2048},
+        "as_of_date": {"type": "string", "format": "date"},
+        "expires_at": {"type": "string", "format": "date"},
+        "reason": {"type": "string", "minLength": 20, "maxLength": 1000, "pattern": "^[^<>]*$"},
+        "rubric_version": {"const": "qualitative-score-rubric-v1.0.0"},
+        "dimension_scores": {
+          "oneOf": [
+            {"$ref": "#/$defs/businessDurabilityDimensions"},
+            {"$ref": "#/$defs/governanceDimensions"}
+          ]
+        },
+        "red_flags": {
+          "type": "array", "uniqueItems": true, "maxItems": 4,
+          "items": {
+            "enum": [
+              "STRUCTURAL_DEMAND_DECLINE", "CORE_ASSET_EXPIRY_WITHIN_10Y",
+              "TECHNOLOGY_SUBSTITUTION_UNMITIGATED",
+              "AUDIT_OR_INTERNAL_CONTROL_MAJOR_DEFECT",
+              "CONTROLLING_SHAREHOLDER_MISAPPROPRIATION",
+              "MATERIAL_RELATED_PARTY_CONFLICT",
+              "REPEATED_VALUE_DESTRUCTIVE_ALLOCATION"
+            ]
+          }
+        }
+      }
+    },
+    "businessDurabilityDimensions": {
+      "type": "object", "additionalProperties": false,
+      "required": ["demand_resilience", "competitive_position", "substitution_and_asset_life", "capital_intensity_and_cash_conversion"],
+      "properties": {
+        "demand_resilience": {"type": "integer", "minimum": 0, "maximum": 100},
+        "competitive_position": {"type": "integer", "minimum": 0, "maximum": 100},
+        "substitution_and_asset_life": {"type": "integer", "minimum": 0, "maximum": 100},
+        "capital_intensity_and_cash_conversion": {"type": "integer", "minimum": 0, "maximum": 100}
+      }
+    },
+    "governanceDimensions": {
+      "type": "object", "additionalProperties": false,
+      "required": ["shareholder_alignment", "capital_allocation_discipline", "disclosure_and_internal_controls", "related_party_and_minority_protection"],
+      "properties": {
+        "shareholder_alignment": {"type": "integer", "minimum": 0, "maximum": 100},
+        "capital_allocation_discipline": {"type": "integer", "minimum": 0, "maximum": 100},
+        "disclosure_and_internal_controls": {"type": "integer", "minimum": 0, "maximum": 100},
+        "related_party_and_minority_protection": {"type": "integer", "minimum": 0, "maximum": 100}
+      }
+    },
+    "scenario": {
+      "type": "object", "additionalProperties": false,
+      "required": ["summary", "key_assumptions"],
+      "properties": {
+        "summary": {"type": "string", "minLength": 1, "maxLength": 800},
+        "key_assumptions": {"type": "array", "minItems": 1, "maxItems": 8, "items": {"type": "string", "minLength": 1, "maxLength": 400}}
+      }
+    },
+    "bearScenario": {
+      "type": "object", "additionalProperties": false,
+      "required": ["summary", "key_assumptions", "main_failure_path"],
+      "properties": {
+        "summary": {"type": "string", "minLength": 1, "maxLength": 800},
+        "key_assumptions": {"type": "array", "minItems": 1, "maxItems": 8, "items": {"type": "string", "minLength": 1, "maxLength": 400}},
+        "main_failure_path": {"type": "string", "minLength": 1, "maxLength": 800}
+      }
+    }
+  }
+}

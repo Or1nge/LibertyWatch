@@ -1,0 +1,11 @@
+/var/lib/liberty/shareholder-v2/analysis/output/*/runs/*/stderr.log
+/var/lib/liberty/shareholder-v2/analysis/output/*/runs/*/run.events.jsonl {
+    weekly
+    rotate 8
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    su liberty liberty
+}

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run shareholder-return v2 fast calculation after quote refresh
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* *:0/2:20
+AccuracySec=10s
+Persistent=true
+Unit=shareholder-data-pipeline.service
+
+[Install]
+WantedBy=timers.target

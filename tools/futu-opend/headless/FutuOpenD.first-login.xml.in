@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<futu_opend>
+    <ip>127.0.0.1</ip>
+    <api_port>11111</api_port>
+    <login_account>__LOGIN_ACCOUNT__</login_account>
+    <login_pwd_md5>__LOGIN_PWD_MD5__</login_pwd_md5>
+    <lang>chs</lang>
+    <log_level>info</log_level>
+    <push_proto_type>0</push_proto_type>
+    <price_reminder_push>0</price_reminder_push>
+    <auto_hold_quote_right>1</auto_hold_quote_right>
+    <future_trade_api_time_zone>UTC+8</future_trade_api_time_zone>
+    <telnet_ip>127.0.0.1</telnet_ip>
+    <telnet_port>22222</telnet_port>
+</futu_opend>

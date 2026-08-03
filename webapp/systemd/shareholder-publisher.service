@@ -1,0 +1,24 @@
+[Unit]
+Description=Publish verified shareholder-return v2 releases to Ali
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=liberty
+Group=liberty
+WorkingDirectory=/opt/liberty/shareholder-v2/current
+EnvironmentFile=/etc/liberty/shareholder-v2.env
+Environment=HOME=/var/lib/liberty
+ExecStart=/opt/liberty/shareholder-v2/current/scripts/publish_shareholder_v2.sh
+TimeoutStartSec=300
+UMask=0007
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/liberty
+RestrictSUIDSGID=true
+LockPersonality=true
+StandardOutput=journal
+StandardError=journal

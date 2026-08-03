@@ -1,0 +1,183 @@
+{
+  "schema_version": "1.0",
+  "calculation_version": "shareholder-return-v2.0.2",
+  "metric_definition_version": "shareholder-return-v2.0.2",
+  "prompt_version": "risk-review-v1.1.0",
+  "output_schema_version": "1.1",
+  "base_currency": "CNY",
+  "thresholds": {
+    "cash_anchor_yield": "0.04",
+    "observation_exit_yield": "0.035",
+    "observation_exit_trading_days": 5,
+    "price_trigger_cooldown_days": 7,
+    "company_analysis_cooldown_days": 30,
+    "periodic_refresh_days": 90,
+    "high_risk_refresh_days": 30,
+    "material_ssy_absolute": "0.005",
+    "material_ssy_relative": "0.15",
+    "material_h_relative": "0.15",
+    "material_s_relative": "0.15",
+    "material_cr10_absolute": "0.0075",
+    "material_score_absolute": "10",
+    "material_coverage_absolute": "0.25",
+    "material_net_debt_ebitda": "0.5",
+    "ordinary_dividend_decline_veto": "0.30",
+    "one_off_distribution_share_veto": "0.30",
+    "fcf_overdistribution_ratio": "1.25"
+  },
+  "history_caps": [
+    {"minimum_years": 0, "maximum_years": 2, "recommendation_cap": 50, "recommendable": false},
+    {"minimum_years": 3, "maximum_years": 4, "recommendation_cap": 65, "recommendable": true},
+    {"minimum_years": 5, "maximum_years": 7, "recommendation_cap": 80, "recommendable": true},
+    {"minimum_years": 8, "maximum_years": 100, "recommendation_cap": 100, "recommendable": true}
+  ],
+  "score_weights": {
+    "payout_quality": {
+      "coverage": "0.30",
+      "recent_trend": "0.20",
+      "history_stability": "0.15",
+      "balance_sheet": "0.15",
+      "buyback_quality": "0.10",
+      "data_completeness": "0.10"
+    },
+    "recommendation": {
+      "return_score": "0.45",
+      "payout_quality": "0.30",
+      "business_durability": "0.15",
+      "governance_capital_allocation": "0.10"
+    },
+    "entry_risk": {
+      "distribution_deterioration": "0.20",
+      "coverage": "0.20",
+      "balance_sheet": "0.15",
+      "structural_cycle": "0.15",
+      "policy_asset_life": "0.10",
+      "valuation_trap": "0.10",
+      "governance": "0.05",
+      "data_quality": "0.05"
+    }
+  },
+  "coverage_score_bands": [
+    ["0", "0"], ["0.50", "20"], ["0.80", "45"],
+    ["1.00", "70"], ["1.20", "85"], ["1.50", "100"]
+  ],
+  "formula_parameters": {
+    "recent_two_year_weights": ["0.65", "0.35"],
+    "history_8_plus_weights": ["0.65", "0.25", "0.10"],
+    "history_8_plus_median_cap": "1.10",
+    "history_8_plus_ten_year_cap": "1.20",
+    "history_5_7_weights": ["0.70", "0.30"],
+    "history_5_7_median_cap": "1.10",
+    "winsorize_minimum_years": 8,
+    "fcf_capacity_haircut": "0.90",
+    "organic_growth_floor": "-0.08",
+    "organic_growth_ceiling": "0.06",
+    "positive_growth_confirmation": "0.50",
+    "positive_growth_contribution_cap": "0.03",
+    "valuation_compression_years": 10,
+    "return_score_center": "50",
+    "return_score_cr10_center": "0.04",
+    "return_score_points_per_1pct": "25",
+    "incomplete_recommendation_cap": "60"
+  },
+  "buyback_persistence": [
+    {"minimum_reduction_years": 4, "factor": "1.0"},
+    {"minimum_reduction_years": 2, "factor": "0.7"},
+    {"minimum_reduction_years": 1, "factor": "0.4"},
+    {"minimum_reduction_years": 0, "factor": "0"}
+  ],
+  "buyback_quality_scores": {
+    "1.0": "100",
+    "0.7": "80",
+    "0.4": "60",
+    "no_buyback_no_dilution": "70",
+    "failed_net_reduction": "0"
+  },
+  "recent_trend_score_bands": [
+    {"ratio_min": "1.10", "score": "100", "requires_no_obvious_decline": true},
+    {"ratio_min": "0.95", "score": "85"},
+    {"ratio_min": "0.80", "score": "60"},
+    {"ratio_min": "0.50", "score": "25"},
+    {"ratio_min": "0", "score": "0"}
+  ],
+  "recent_trend_obvious_decline_ratio": "0.70",
+  "recent_trend_obvious_decline_score": "60",
+  "history_stability_bands": {
+    "no_interruption_cv_015": "100",
+    "no_interruption_cv_030": "80",
+    "one_interruption_or_cv_050": "55",
+    "otherwise": "20",
+    "latest_zero": "0"
+  },
+  "history_stability_thresholds": {
+    "excellent_cv_max": "0.15",
+    "good_cv_max": "0.30",
+    "acceptable_cv_max": "0.50",
+    "acceptable_interruptions_max": 1
+  },
+  "industry_adapters": {
+    "non_financial": {"minimum_complete_fcf_years": 2, "capacity_haircut": "0.90"},
+    "bank": {"minimum_capital_buffer": "0.01", "capacity_haircut": "0.90"},
+    "insurance": {"minimum_solvency_buffer": "0.20", "capacity_haircut": "0.90"}
+  },
+  "classification_bands": {
+    "A": {"ri_min": "80", "eri_max": "30"},
+    "B": {"ri_min": "65", "eri_max": "45"},
+    "D": {"ri_below": "50", "eri_above": "60"}
+  },
+  "reconciliation_tolerances": {
+    "relative": "0.02",
+    "absolute_currency_minor_units": "1.00",
+    "share_count_relative": "0.005",
+    "stale_quote_hours": 24
+  },
+  "codex": {
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "xhigh",
+    "sandbox": "read-only",
+    "global_concurrency": 1,
+    "timeout_seconds": 1800,
+    "max_automatic_retries": 2,
+    "schema_retries": 1,
+    "reviewed_overlay_max_validity_days": 365,
+    "reviewed_overlay_score_rubric": {
+      "version": "qualitative-score-rubric-v1.0.0",
+      "rounding": "equal_weight_arithmetic_mean_half_up",
+      "bands": [
+        {"minimum": 80, "maximum": 100, "label_zh": "强且有多来源持续证据"},
+        {"minimum": 60, "maximum": 79, "label_zh": "总体可接受但存在可监测弱点"},
+        {"minimum": 40, "maximum": 59, "label_zh": "脆弱或证据仅部分支持"},
+        {"minimum": 0, "maximum": 39, "label_zh": "重大红旗、持续恶化或纪律失效"}
+      ],
+      "business_durability": {
+        "dimensions": [
+          "demand_resilience",
+          "competitive_position",
+          "substitution_and_asset_life",
+          "capital_intensity_and_cash_conversion"
+        ],
+        "red_flag_cap": 49,
+        "red_flags": [
+          "STRUCTURAL_DEMAND_DECLINE",
+          "CORE_ASSET_EXPIRY_WITHIN_10Y",
+          "TECHNOLOGY_SUBSTITUTION_UNMITIGATED"
+        ]
+      },
+      "governance_capital_allocation": {
+        "dimensions": [
+          "shareholder_alignment",
+          "capital_allocation_discipline",
+          "disclosure_and_internal_controls",
+          "related_party_and_minority_protection"
+        ],
+        "red_flag_cap": 39,
+        "red_flags": [
+          "AUDIT_OR_INTERNAL_CONTROL_MAJOR_DEFECT",
+          "CONTROLLING_SHAREHOLDER_MISAPPROPRIATION",
+          "MATERIAL_RELATED_PARTY_CONFLICT",
+          "REPEATED_VALUE_DESTRUCTIVE_ALLOCATION"
+        ]
+      }
+    }
+  }
+}

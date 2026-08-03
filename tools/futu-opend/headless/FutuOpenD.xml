@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<futu_opend>
+    <!-- 行情 API 仅允许本机访问。 -->
+    <ip>127.0.0.1</ip>
+    <api_port>11111</api_port>
+    <lang>chs</lang>
+    <log_level>info</log_level>
+    <push_proto_type>0</push_proto_type>
+    <price_reminder_push>0</price_reminder_push>
+    <auto_hold_quote_right>1</auto_hold_quote_right>
+    <future_trade_api_time_zone>UTC+8</future_trade_api_time_zone>
+
+    <!-- 仅供本机运维；不暴露到局域网或公网。 -->
+    <telnet_ip>127.0.0.1</telnet_ip>
+    <telnet_port>22222</telnet_port>
+</futu_opend>

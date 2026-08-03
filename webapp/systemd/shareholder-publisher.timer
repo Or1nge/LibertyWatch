@@ -1,0 +1,11 @@
+[Unit]
+Description=Retry pending shareholder-return v2 releases every five minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=5min
+Persistent=true
+Unit=shareholder-publisher.service
+
+[Install]
+WantedBy=timers.target

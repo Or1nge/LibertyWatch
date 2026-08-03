@@ -1,0 +1,40 @@
+services:
+  liberty-watch:
+    build:
+      context: .
+    image: liberty-watch:local
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${LIBERTY_PUBLIC_PORT:-5048}:5048"
+    environment:
+      REFRESH_INTERVAL_MS: "60000"
+      WATCHLIST_FILE: /app/config/watchlist.json
+      DEMO_WATCHLIST_FILE: /app/config/demo-watchlist.json
+      SNAPSHOT_FILE: /app/runtime/latest_snapshot.json
+      HISTORY_FILE: /app/runtime/weekly_history.json
+      SHAREHOLDER_RETURN_V2_ENABLED: "${SHAREHOLDER_RETURN_V2_ENABLED:-true}"
+      SHAREHOLDER_V2_STRUCTURED_ROOT: /app/runtime/shareholder-v2/structured
+      SHAREHOLDER_V2_ANALYSIS_ROOT: /app/runtime/shareholder-v2/analysis
+      METRIC_DEFINITIONS_V2_FILE: /app/config/metric_definitions_v2.json
+      PUBLIC_DIR: /app/public
+    volumes:
+      - ./config:/app/config:ro
+      - ${LIBERTY_SHARED_DIR:-/usr/LibertyWatch/shared}:/app/runtime:ro
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5048/readyz', timeout=3).read()"
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3

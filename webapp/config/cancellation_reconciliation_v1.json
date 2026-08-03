@@ -1,0 +1,466 @@
+{
+  "schema_version": "cancellation-reconciliation-review-v1.0",
+  "policy": {
+    "candidate_decision_scope": "whether the original cancelled_shares_candidate is an exact fiscal-year cancellation count",
+    "issued_share_scope": "issued and paid ordinary shares only; never treated as diluted total shares",
+    "diluted_share_rule": "without verified opening and closing diluted total shares, net_reduction_factor and B_eligible remain null",
+    "production_write": false
+  },
+  "reviews": [
+    {
+      "review_id": "HK0669-FY2016",
+      "company_id": "HK0669",
+      "company_name": "创科实业",
+      "fiscal_year": 2016,
+      "candidate_cancelled_shares": "1500000",
+      "decision": "ACCEPT",
+      "candidate_decision_reason": "The exact-share capital table and the following repurchase table both state that 1,500,000 shares were repurchased, settled and cancelled in FY2016.",
+      "cancellation_fact_decision": "ACCEPT",
+      "issued_share_bridge": {
+        "opening_issued_shares": "1833736941",
+        "issued_additions": [
+          {
+            "type": "SHARE_OPTIONS_EXERCISED",
+            "shares": "1660000"
+          }
+        ],
+        "verified_cancelled_shares": "1500000",
+        "derived_closing_issued_shares": "1833896941",
+        "reported_closing_issued_shares": "1833896941",
+        "status": "ACCEPT",
+        "reported_unit": "shares",
+        "reported_unit_multiplier": "1",
+        "reason": "Opening + option exercises - cancelled shares equals the exact reported closing issued shares."
+      },
+      "diluted_share_bridge_status": "REVIEW",
+      "dilution_blockers": [
+        "The report discloses 10,673,000 outstanding share options at year end.",
+        "No opening and closing endpoint diluted-total-share measure is reported.",
+        "Issued shares therefore cannot substitute for diluted total shares."
+      ],
+      "net_reduction_factor": null,
+      "b_eligible_authorized": false,
+      "buyback_cash_scope_note": "The same table reports USD 5.425 million paid for the cancelled shares, but B_eligible remains blocked until diluted net reduction is known.",
+      "source_expectations": [
+        {
+          "fiscal_year": 2016,
+          "source_document": "2016年年報",
+          "sha256": "62e034375b451674b5d2d05d92904f812a62b64be5add01b00176d6ef008457e",
+          "pdf_pages": 176,
+          "identity_fragments": [
+            "創科實業有限公司",
+            "2016年年報"
+          ]
+        }
+      ],
+      "evidence_checks": [
+        {
+          "kind": "ISSUED_SHARE_BRIDGE_AND_CANCELLATION",
+          "source_fiscal_year": 2016,
+          "page": 154,
+          "required_fragments": [
+            "於年初1,833,736,941",
+            "因行使認股權發行之股份1,660,000",
+            "回購股份(1,500,000)",
+            "於年末1,833,896,941",
+            "年內，回購的股份已結算及註銷"
+          ]
+        },
+        {
+          "kind": "DILUTION_BLOCKER",
+          "source_fiscal_year": 2016,
+          "page": 165,
+          "required_fragments": [
+            "10,673,000份尚未行使認股權"
+          ]
+        }
+      ]
+    },
+    {
+      "review_id": "HK0669-FY2023",
+      "company_id": "HK0669",
+      "company_name": "创科实业",
+      "fiscal_year": 2023,
+      "candidate_cancelled_shares": "500000",
+      "decision": "ACCEPT",
+      "candidate_decision_reason": "The exact-share capital table and repurchase note state that 500,000 shares were repurchased, settled and cancelled in FY2023.",
+      "cancellation_fact_decision": "ACCEPT",
+      "issued_share_bridge": {
+        "opening_issued_shares": "1834697941",
+        "issued_additions": [
+          {
+            "type": "SHARE_OPTIONS_EXERCISED",
+            "shares": "120000"
+          }
+        ],
+        "verified_cancelled_shares": "500000",
+        "derived_closing_issued_shares": "1834317941",
+        "reported_closing_issued_shares": "1834317941",
+        "status": "ACCEPT",
+        "reported_unit": "shares",
+        "reported_unit_multiplier": "1",
+        "reason": "Opening + option exercises - cancelled shares equals the exact reported closing issued shares."
+      },
+      "diluted_share_bridge_status": "REVIEW",
+      "dilution_blockers": [
+        "Outstanding share options increased to 20,489,000 from 16,939,000.",
+        "The annual report does not provide endpoint diluted total shares.",
+        "Issued-share decline alone cannot establish diluted net reduction."
+      ],
+      "net_reduction_factor": null,
+      "b_eligible_authorized": false,
+      "buyback_cash_scope_note": "The report states USD 4.408 million of repurchase consideration, but B_eligible remains blocked by the missing diluted-share bridge.",
+      "source_expectations": [
+        {
+          "fiscal_year": 2023,
+          "source_document": "2023年年報",
+          "sha256": "3a3da0eff57116e2fea75f73b804a7838a3eb633beceae86cf4499b68dceb091",
+          "pdf_pages": 199,
+          "identity_fragments": [
+            "創科實業有限公司",
+            "2023年年報"
+          ]
+        }
+      ],
+      "evidence_checks": [
+        {
+          "kind": "ISSUED_SHARE_BRIDGE_AND_CANCELLATION",
+          "source_fiscal_year": 2023,
+          "page": 173,
+          "required_fragments": [
+            "於年初1,834,697,941",
+            "因行使認股權發行之股份120,000",
+            "回購股份(500,000)",
+            "於年末1,834,317,941",
+            "購回的股份已於年內結算及註銷"
+          ]
+        },
+        {
+          "kind": "DILUTION_BLOCKER",
+          "source_fiscal_year": 2023,
+          "page": 187,
+          "required_fragments": [
+            "20,489,000份尚未行使認股權",
+            "16,939,000份"
+          ]
+        }
+      ]
+    },
+    {
+      "review_id": "HK0669-FY2024",
+      "company_id": "HK0669",
+      "company_name": "创科实业",
+      "fiscal_year": 2024,
+      "candidate_cancelled_shares": "3000000",
+      "decision": "ACCEPT",
+      "candidate_decision_reason": "The exact-share capital and monthly repurchase tables state that 3,000,000 shares were repurchased, settled and cancelled in FY2024.",
+      "cancellation_fact_decision": "ACCEPT",
+      "issued_share_bridge": {
+        "opening_issued_shares": "1834317941",
+        "issued_additions": [
+          {
+            "type": "SHARE_OPTIONS_EXERCISED",
+            "shares": "987000"
+          }
+        ],
+        "verified_cancelled_shares": "3000000",
+        "derived_closing_issued_shares": "1832304941",
+        "reported_closing_issued_shares": "1832304941",
+        "status": "ACCEPT",
+        "reported_unit": "shares",
+        "reported_unit_multiplier": "1",
+        "reason": "Opening + option exercises - cancelled shares equals the exact reported closing issued shares."
+      },
+      "diluted_share_bridge_status": "REVIEW",
+      "dilution_blockers": [
+        "Outstanding share options increased to 20,925,000 from 20,489,000.",
+        "The report discloses new grants and option exercises but not endpoint diluted total shares.",
+        "The exact issued-share decline cannot be used as diluted net reduction."
+      ],
+      "net_reduction_factor": null,
+      "b_eligible_authorized": false,
+      "buyback_cash_scope_note": "The report states USD 37.521 million paid for the cancelled shares, but B_eligible remains blocked by the missing diluted-share bridge.",
+      "source_expectations": [
+        {
+          "fiscal_year": 2024,
+          "source_document": "2024年年報",
+          "sha256": "1d4d3994e713256b051c88196e67eec030a2574bce32a640292e13651c4979a4",
+          "pdf_pages": 188,
+          "identity_fragments": [
+            "創科實業有限公司",
+            "2024年年報"
+          ]
+        }
+      ],
+      "evidence_checks": [
+        {
+          "kind": "ISSUED_SHARE_BRIDGE_AND_CANCELLATION",
+          "source_fiscal_year": 2024,
+          "page": 166,
+          "required_fragments": [
+            "於年初1,834,317,941",
+            "因行使認股權發行之股份987,000",
+            "回購股份(3,000,000)",
+            "於年末1,832,304,941",
+            "購回的股份已於年內結算及註銷"
+          ]
+        },
+        {
+          "kind": "DILUTION_BLOCKER",
+          "source_fiscal_year": 2024,
+          "page": 178,
+          "required_fragments": [
+            "20,925,000份尚未行使認股權",
+            "20,489,000份"
+          ]
+        }
+      ]
+    },
+    {
+      "review_id": "HK0669-FY2025",
+      "company_id": "HK0669",
+      "company_name": "创科实业",
+      "fiscal_year": 2025,
+      "candidate_cancelled_shares": "3500000",
+      "decision": "ACCEPT",
+      "candidate_decision_reason": "The exact-share capital and monthly repurchase tables state that 3,500,000 shares were repurchased and cancelled in FY2025.",
+      "cancellation_fact_decision": "ACCEPT",
+      "issued_share_bridge": {
+        "opening_issued_shares": "1832304941",
+        "issued_additions": [
+          {
+            "type": "SHARE_OPTIONS_EXERCISED",
+            "shares": "405000"
+          }
+        ],
+        "verified_cancelled_shares": "3500000",
+        "derived_closing_issued_shares": "1829209941",
+        "reported_closing_issued_shares": "1829209941",
+        "status": "ACCEPT",
+        "reported_unit": "shares",
+        "reported_unit_multiplier": "1",
+        "reason": "Opening + option exercises - cancelled shares equals the exact reported closing issued shares."
+      },
+      "diluted_share_bridge_status": "REVIEW",
+      "dilution_blockers": [
+        "Outstanding share options increased to 22,045,000 from 20,925,000.",
+        "New employee option grants and share-award schemes remain outstanding.",
+        "No endpoint diluted total shares are reported."
+      ],
+      "net_reduction_factor": null,
+      "b_eligible_authorized": false,
+      "buyback_cash_scope_note": "The report states USD 41.728 million paid for repurchases, but B_eligible remains blocked by the missing diluted-share bridge.",
+      "source_expectations": [
+        {
+          "fiscal_year": 2025,
+          "source_document": "2025年年報",
+          "sha256": "0254895015ffc39f9e134d30026cfe0ca2752c845d9309d0963dfabde1dc2fd9",
+          "pdf_pages": 184,
+          "identity_fragments": [
+            "創科實業有限公司",
+            "2025年年報"
+          ]
+        }
+      ],
+      "evidence_checks": [
+        {
+          "kind": "ISSUED_SHARE_BRIDGE_AND_CANCELLATION",
+          "source_fiscal_year": 2025,
+          "page": 163,
+          "required_fragments": [
+            "於年初1,832,304,941",
+            "因行使認股權發行之股份405,000",
+            "回購股份(3,500,000)",
+            "於年末1,829,209,941",
+            "本公司透過聯交所回購及註銷其股份如下"
+          ]
+        },
+        {
+          "kind": "DILUTION_BLOCKER",
+          "source_fiscal_year": 2025,
+          "page": 174,
+          "required_fragments": [
+            "22,045,000份尚未行使認股權",
+            "20,925,000份認股權"
+          ]
+        }
+      ]
+    },
+    {
+      "review_id": "HK2020-FY2024",
+      "company_id": "HK2020",
+      "company_name": "安踏体育",
+      "fiscal_year": 2024,
+      "candidate_cancelled_shares": "9400000",
+      "decision": "ACCEPT",
+      "candidate_decision_reason": "The exact repurchase total of 16,306,000 less 6,906,000 shares still awaiting cancellation at year end proves that 9,400,000 shares had been cancelled in FY2024, matching the thousand-share capital row.",
+      "cancellation_fact_decision": "ACCEPT",
+      "issued_share_bridge": {
+        "opening_issued_shares": "2832624000",
+        "issued_additions": [],
+        "verified_cancelled_shares": "9400000",
+        "derived_closing_issued_shares": "2823224000",
+        "reported_closing_issued_shares": "2823224000",
+        "status": "REVIEW",
+        "reported_unit": "thousand_shares",
+        "reported_unit_multiplier": "1000",
+        "reason": "The bridge is arithmetically consistent and the cancellation is exact, but opening and closing issued shares are presented only in thousand-share units."
+      },
+      "diluted_share_bridge_status": "REVIEW",
+      "dilution_blockers": [
+        "The company had convertible bonds representing up to 122,454,790 potential conversion shares at year end.",
+        "Share-option and share-award schemes also existed.",
+        "The report supplies weighted-average EPS denominators, not endpoint diluted total shares."
+      ],
+      "net_reduction_factor": null,
+      "b_eligible_authorized": false,
+      "buyback_cash_scope_note": "FY2024 cash paid covers all 16,306,000 repurchased shares, while only 9,400,000 had been cancelled by year end and 6,906,000 were cancelled in FY2025; do not pair the full cash amount with FY2024 cancellation count without a timing policy.",
+      "source_expectations": [
+        {
+          "fiscal_year": 2024,
+          "source_document": "二零二四年年報",
+          "sha256": "efd6054ca15191ad9a3dfd9ba131040291e52e51a90a413ea613632dae98f8f2",
+          "pdf_pages": 224,
+          "identity_fragments": [
+            "安踏體育用品有限公司",
+            "二零二四年年報"
+          ]
+        }
+      ],
+      "evidence_checks": [
+        {
+          "kind": "ROUNDED_ISSUED_SHARE_BRIDGE",
+          "source_fiscal_year": 2024,
+          "page": 177,
+          "required_fragments": [
+            "千股",
+            "2,832,624",
+            "購回和註銷股份",
+            "(9,400)",
+            "2,823,224"
+          ]
+        },
+        {
+          "kind": "EXACT_CANCELLED_AND_PENDING_SPLIT",
+          "source_fiscal_year": 2024,
+          "page": 180,
+          "required_fragments": [
+            "購回其普通股16,306,000股",
+            "其中6,906,000股於二零二四年十二月三十一日尚未註銷",
+            "該等股份隨後於二零二五年二月十二日註銷"
+          ]
+        },
+        {
+          "kind": "DILUTION_BLOCKER",
+          "source_fiscal_year": 2024,
+          "page": 170,
+          "required_fragments": [
+            "4,870,191股換股股份"
+          ]
+        },
+        {
+          "kind": "DILUTION_BLOCKER",
+          "source_fiscal_year": 2024,
+          "page": 171,
+          "required_fragments": [
+            "117,584,599股換股股份"
+          ]
+        }
+      ]
+    },
+    {
+      "review_id": "HK2020-FY2025",
+      "company_id": "HK2020",
+      "company_name": "安踏体育",
+      "fiscal_year": 2025,
+      "candidate_cancelled_shares": "26571000",
+      "decision": "REJECT",
+      "candidate_decision_reason": "The 26,571 thousand-share capital row is rounded. Exact notes support 6,906,000 prior-year pending shares plus 19,664,200 current-year repurchases cancelled in FY2025, or 26,570,200 shares; the raw candidate overstates the exact count by 800 shares.",
+      "cancellation_fact_decision": "ACCEPT",
+      "issued_share_bridge": {
+        "opening_issued_shares": "2823224000",
+        "issued_additions": [],
+        "verified_cancelled_shares": "26570200",
+        "derived_closing_issued_shares": "2796653800",
+        "reported_closing_issued_shares": "2796653000",
+        "status": "REVIEW",
+        "reported_unit": "thousand_shares",
+        "reported_unit_multiplier": "1000",
+        "reason": "The exact cancellation components imply 2,796,653,800 closing shares, while the thousand-share table reports 2,796,653,000; the 800-share difference is an internal rounding conflict and cannot be promoted as an exact endpoint."
+      },
+      "diluted_share_bridge_status": "REVIEW",
+      "dilution_blockers": [
+        "The outstanding 2029 convertible bonds represented 120,944,823 potential conversion shares at year end.",
+        "Share-option and share-award schemes remained active.",
+        "Neither exact endpoint issued shares nor endpoint diluted total shares are directly reported."
+      ],
+      "net_reduction_factor": null,
+      "b_eligible_authorized": false,
+      "buyback_cash_scope_note": "FY2025 cancellations combine 6,906,000 shares bought in FY2024 with 19,664,200 shares bought in FY2025. Current-year repurchase cash therefore must not be matched to the combined cancellation count.",
+      "source_expectations": [
+        {
+          "fiscal_year": 2024,
+          "source_document": "二零二四年年報",
+          "sha256": "efd6054ca15191ad9a3dfd9ba131040291e52e51a90a413ea613632dae98f8f2",
+          "pdf_pages": 224,
+          "identity_fragments": [
+            "安踏體育用品有限公司",
+            "二零二四年年報"
+          ]
+        },
+        {
+          "fiscal_year": 2025,
+          "source_document": "二零二五年年報",
+          "sha256": "1297bbbca740983d862702370b3fa46f8e87d2913da295e23660e09e835689fd",
+          "pdf_pages": 224,
+          "identity_fragments": [
+            "安踏體育用品有限公司",
+            "二零二五年年報"
+          ]
+        }
+      ],
+      "evidence_checks": [
+        {
+          "kind": "ROUNDED_CANDIDATE_ROW",
+          "source_fiscal_year": 2025,
+          "page": 171,
+          "required_fragments": [
+            "千股",
+            "2,823,224",
+            "購回和註銷股份",
+            "(26,571)",
+            "2,796,653"
+          ]
+        },
+        {
+          "kind": "CURRENT_YEAR_EXACT_CANCELLATION",
+          "source_fiscal_year": 2025,
+          "page": 174,
+          "required_fragments": [
+            "購回其普通股19,664,200股",
+            "所有購回之股份已於報告期內被註銷",
+            "二零二四年：6,906,000股普通股尚未註銷"
+          ]
+        },
+        {
+          "kind": "PRIOR_YEAR_CARRYOVER_CANCELLED_IN_2025",
+          "source_fiscal_year": 2024,
+          "page": 180,
+          "required_fragments": [
+            "其中6,906,000股於二零二四年十二月三十一日尚未註銷",
+            "該等股份隨後於二零二五年二月十二日註銷"
+          ]
+        },
+        {
+          "kind": "DILUTION_BLOCKER",
+          "source_fiscal_year": 2025,
+          "page": 165,
+          "required_fragments": [
+            "120,944,823股換股股份",
+            "概無任何2029年可換股債券之轉換權獲行使"
+          ]
+        }
+      ]
+    }
+  ]
+}

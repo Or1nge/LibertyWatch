@@ -1,0 +1,33 @@
+[Unit]
+Description=Liberty local Codex risk-analysis worker
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=liberty
+Group=liberty
+WorkingDirectory=/opt/liberty/shareholder-v2/current
+EnvironmentFile=/etc/liberty/shareholder-v2.env
+Environment=HOME=/var/lib/liberty
+Environment=CODEX_HOME=/var/lib/liberty/.codex
+ExecStartPre=/opt/liberty/shareholder-v2/current/.venv/bin/python scripts/shareholder_v2.py health-check --codex --worker-scope
+ExecStart=/opt/liberty/shareholder-v2/current/.venv/bin/python scripts/shareholder_v2.py worker
+Restart=on-failure
+RestartSec=300
+TimeoutStopSec=30
+KillMode=mixed
+UMask=0007
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/liberty/shareholder-v2/analysis /var/lib/liberty/shareholder-v2/status /var/lib/liberty/.codex
+InaccessiblePaths=-/var/lib/liberty/shareholder-v2/inputs -/var/lib/liberty/shareholder-v2/staging -/var/lib/liberty/shareholder-v2/cache -/var/lib/liberty/shareholder-v2/snapshots -/var/lib/liberty/shareholder-v2/published -/var/lib/liberty/shareholder-v2/analysis/observations
+RestrictSUIDSGID=true
+LockPersonality=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

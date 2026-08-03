@@ -1,0 +1,26 @@
+[Unit]
+Description=Liberty shareholder-return v2 deterministic data pipeline
+Wants=network-online.target
+After=network-online.target liberty-quote-push.service
+OnSuccess=shareholder-analysis-dispatcher.service
+
+[Service]
+Type=oneshot
+User=liberty
+Group=liberty
+WorkingDirectory=/opt/liberty/shareholder-v2/current
+EnvironmentFile=/etc/liberty/shareholder-v2.env
+ExecStartPre=/opt/liberty/shareholder-v2/current/.venv/bin/python scripts/shareholder_v2.py health-check
+ExecStartPre=/opt/liberty/shareholder-v2/current/.venv/bin/python scripts/shareholder_v2.py refresh-prices
+ExecStart=/opt/liberty/shareholder-v2/current/.venv/bin/python scripts/shareholder_v2.py compute
+TimeoutStartSec=600
+UMask=0007
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/liberty
+RestrictSUIDSGID=true
+LockPersonality=true
+StandardOutput=journal
+StandardError=journal
