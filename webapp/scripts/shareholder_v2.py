@@ -60,6 +60,11 @@ from liberty_v2.release import (  # noqa: E402
 from liberty_v2.slow_cache import load_or_compute_slow_v21  # noqa: E402
 from liberty_v2.snapshot_store import LastValidSnapshotStore, atomic_write_json  # noqa: E402
 from liberty_v2.sync import AliReleaseSynchronizer, AliSyncConfig  # noqa: E402
+from liberty_v2.public_contract import (  # noqa: E402
+    V2ContractError,
+    validate_activation_canary,
+    validate_public_index,
+)
 
 
 def runtime_root() -> Path:
@@ -465,8 +470,40 @@ def command_dispatch(args: argparse.Namespace) -> int:
         observation_root=local["observations"],
         analysis_storage=storage,
     )
+    structured_release = current_release(local["structured"])
+    company_index = json.loads(
+        (structured_release / "companies.json").read_text(encoding="utf-8")
+    )
+    canary = validate_public_index(company_index)
+    activation_config = json.loads(
+        (PROJECT_ROOT / "config" / "shareholder_v2_activation_reviews.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    try:
+        validate_activation_canary(
+            company_index,
+            approved_company_ids=activation_config.get("approved_company_ids", []),
+            expected_company_count=int(
+                activation_config.get("expected_company_count", 67)
+            ),
+            minimum_scored_companies=int(
+                activation_config.get("minimum_scored_companies", 5)
+            ),
+        )
+    except V2ContractError as error:
+        dump(
+            {
+                "created": 0,
+                "results": [],
+                "dispatch_status": "SYSTEM_GATE_CLOSED",
+                "reason": f"Codex系统门槛未通过：{error}",
+                "scored_company_count": len(canary.scored_company_ids),
+            }
+        )
+        return 0
     results = dispatcher.dispatch_release(
-        current_release(local["structured"]),
+        structured_release,
         events_by_company=events,
     )
     status = runtime_status({"last_dispatch_at": datetime.now(timezone.utc).isoformat()})
@@ -850,8 +887,10 @@ def command_smoke(args: argparse.Namespace) -> int:
     if not args.confirm_real_codex:
         raise RuntimeError("real Codex smoke test requires --confirm-real-codex")
     company = json.loads(Path(args.company_snapshot).read_text(encoding="utf-8"))
-    if company.get("data_status") != "VALID":
-        raise RuntimeError("smoke-test input must be a VALID structured snapshot")
+    if company.get("data_tier") == "BLOCKED" or not company.get(
+        "analysis_eligibility", {}
+    ).get("eligible"):
+        raise RuntimeError("smoke-test input must have an eligible non-BLOCKED numeric core")
     digest = snapshot_hash(company)
     store = job_store()
     job, created = store.enqueue(

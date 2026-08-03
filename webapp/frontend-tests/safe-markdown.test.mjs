@@ -22,9 +22,9 @@ test("metric explanations and v2 detail are accessible display-only UI", () => {
   const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
   for (const label of [
     "当前估值与4%位置",
+    "统一数据评估",
     "股东分配历史",
     "现金流或资本覆盖",
-    "回购与股本变化",
     "十年保守回报",
     "自动推荐指数",
     "入手风险指数",
@@ -39,6 +39,10 @@ test("metric explanations and v2 detail are accessible display-only UI", () => {
   assert.match(app, /metricInfoPopover\.addEventListener\("focusin"/);
   assert.match(app, /event\.key === "Escape"/);
   assert.doesNotMatch(app, /innerHTML\s*=\s*analysis\.report_markdown/);
+  assert.match(app, /dataTierLabel/);
+  assert.match(app, /freshnessLabel/);
+  assert.match(app, /metricBasisLabel/);
+  assert.doesNotMatch(app, /v2DetailMetricCard\(detail, "buyback_persistence_factor"/);
 });
 
 test("every literal metric explanation entry comes from the registry", () => {

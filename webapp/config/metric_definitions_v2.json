@@ -194,6 +194,25 @@
       "source_level": "company"
     },
     {
+      "id": "fcf_capacity",
+      "label_zh": "覆盖现金流容量",
+      "short_label_zh": "FCF容量",
+      "category": "coverage",
+      "version": "2.1.0",
+      "unit": "currency",
+      "direction": "higher_is_better",
+      "formula_symbolic": "median(last 2-5 FCF); simplified: median(OCF-Capex)",
+      "formula_plain_zh": "最近2至5个合格财年的自由现金流中位数；租赁本金缺失时明确采用简化代理口径。",
+      "simple_interpretation_zh": "在保守平滑后可用于覆盖股东分配的现金流容量。",
+      "good_range_zh": "为正且覆盖H至少1.2倍。",
+      "warning_range_zh": "为负、低于H或使用简化FCF时需复核。",
+      "data_window_zh": "最近2至5个连续完整财年",
+      "applicability": ["non_financial"],
+      "caveats_zh": ["简化FCF使用85%而非90%容量上限。"],
+      "required_fields": ["operating_cash_flow", "capital_expenditure"],
+      "source_level": "company"
+    },
+    {
       "id": "sustainable_distribution",
       "label_zh": "可持续分配额",
       "short_label_zh": "S",
@@ -229,6 +248,25 @@
       "applicability": ["adapter_specific"],
       "caveats_zh": ["不同适配器的经济含义不完全相同。"],
       "required_fields": ["historical_conservative_distribution", "coverage_capacity"],
+      "source_level": "company"
+    },
+    {
+      "id": "balance_sheet_risk_indicator",
+      "label_zh": "基础资产负债表风险指标",
+      "short_label_zh": "资产负债表",
+      "category": "coverage",
+      "version": "2.1.0",
+      "unit": "adapter_specific",
+      "direction": "lower_is_better_except_net_cash",
+      "formula_symbolic": "direct: net_debt/equity or NET_CASH; proxy: total_liabilities/total_assets",
+      "formula_plain_zh": "优先使用净现金或净负债/权益；债务分项不完整时才使用负债/资产代理，不把缺失债务当0。",
+      "simple_interpretation_zh": "用于判断分配能力是否受到资产负债表压力约束。",
+      "good_range_zh": "净现金，或较低的净负债/权益。",
+      "warning_range_zh": "高杠杆或只能使用负债/资产代理。",
+      "data_window_zh": "最近可用完整资产负债表",
+      "applicability": ["adapter_specific"],
+      "caveats_zh": ["代理指标会降低公司层级和置信度。"],
+      "required_fields": ["balance_sheet_adapter"],
       "source_level": "company"
     },
     {
@@ -327,6 +365,25 @@
       "source_level": "company"
     },
     {
+      "id": "organic_growth",
+      "label_zh": "有机现金流增长",
+      "short_label_zh": "有机增长",
+      "category": "return",
+      "version": "2.1.0",
+      "unit": "ratio",
+      "direction": "higher_with_evidence",
+      "formula_symbolic": "robust_growth(latest continuous 2-5 year FCF series)",
+      "formula_plain_zh": "从实际采用的连续FCF序列推导稳健增长；不另造一套增长数据源。",
+      "simple_interpretation_zh": "公司整体可分配现金流近期的方向和速度。",
+      "good_range_zh": "稳定为正且有5年连续证据。",
+      "warning_range_zh": "短历史、断档或负增长。",
+      "data_window_zh": "最近2至5个连续完整财年",
+      "applicability": ["non_financial"],
+      "caveats_zh": ["正增长贡献仍受历史长度上限约束。"],
+      "required_fields": ["fcf_capacity_series"],
+      "source_level": "company"
+    },
+    {
       "id": "conservative_growth",
       "label_zh": "保守增长贡献",
       "short_label_zh": "g_cons",
@@ -362,6 +419,25 @@
       "applicability": ["adapter_specific"],
       "caveats_zh": ["负数、无意义或口径不一致的估值不得强行计算。"],
       "required_fields": ["current_valuation", "historical_median_valuation", "valuation_metric"],
+      "source_level": "company"
+    },
+    {
+      "id": "valuation_adjustment",
+      "label_zh": "可比估值调整",
+      "short_label_zh": "估值调整",
+      "category": "valuation",
+      "version": "2.1.0",
+      "unit": "ratio",
+      "direction": "closer_to_zero_is_better",
+      "formula_symbolic": "comparable only: min(0,(historical_reference/current)^(1/10)-1)",
+      "formula_plain_zh": "只有当前与历史估值同口径可比时才加入非正调整；只有当前PE/PB时保持不适用。",
+      "simple_interpretation_zh": "避免在没有历史基准时人为制造估值扣分。",
+      "good_range_zh": "0或不适用。",
+      "warning_range_zh": "显著负值表示当前估值高于可靠历史参考。",
+      "data_window_zh": "当前估值与同口径历史参考",
+      "applicability": ["companies_with_comparable_valuation"],
+      "caveats_zh": ["不适用不是0；页面必须显示状态。"],
+      "required_fields": ["current_valuation", "historical_reference", "valuation_metric"],
       "source_level": "company"
     },
     {

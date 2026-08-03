@@ -26,6 +26,7 @@ cp -a "${PROJECT_ROOT}/liberty_v2" "${PROJECT_ROOT}/analysis" "${RELEASE_DIR}/"
 install -m 0644 \
   "${PROJECT_ROOT}/config/metric_policy_v2.json" \
   "${PROJECT_ROOT}/config/metric_definitions_v2.json" \
+  "${PROJECT_ROOT}/config/shareholder_v2_activation_reviews.json" \
   "${PROJECT_ROOT}/config/watchlist.json" \
   "${RELEASE_DIR}/config/"
 install -m 0644 "${LIBERTY_SOURCE_ROOT}/data/source/companies.json" "${RELEASE_DIR}/config/companies_v1.json"

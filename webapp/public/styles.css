@@ -4415,6 +4415,94 @@ body::before {
   font-size: 9px;
 }
 
+.v2-freshness {
+  color: #666;
+  font-size: 9px;
+  font-style: normal;
+}
+
+.data-tier {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 3px 8px;
+  border: 1px solid #bbb;
+  border-radius: 999px;
+  color: #333;
+  background: #fff;
+  font-size: 9px;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.data-tier.is-blocked {
+  border-color: #222;
+  color: #fff;
+  background: #222;
+}
+
+.data-tier.is-estimated {
+  border-style: dashed;
+  background: #f2f2f2;
+}
+
+.data-tier.is-calculable,
+.data-tier.is-verified {
+  border-color: #111;
+  color: #111;
+  background: #fff;
+}
+
+.v2-assessment-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.v2-assessment-summary > span {
+  padding: 9px;
+  border: 1px solid #e7e7e7;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.v2-assessment-summary small,
+.v2-assessment-summary strong {
+  display: block;
+}
+
+.v2-assessment-summary small {
+  color: #888;
+  font-size: 8px;
+}
+
+.v2-assessment-summary strong {
+  margin-top: 5px;
+  font-size: 11px;
+}
+
+.v2-issue-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.v2-issue-columns h5 {
+  margin: 0 0 5px;
+  font-size: 9px;
+}
+
+.v2-issue-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 17px;
+  color: #555;
+  font-size: 8.5px;
+  line-height: 1.45;
+}
+
 .shareholder-v2 > .v2-disclaimer {
   margin: 13px 15px 0;
 }
@@ -4819,7 +4907,7 @@ body::before {
   }
 
   .mobile-card-v2-values {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     margin-top: 15px;
     padding-top: 14px;
     border-top: 1px solid #ededed;
@@ -4910,7 +4998,10 @@ body::before {
 }
 
 @media (max-width: 360px) {
-  .mobile-card-primary-values {
+  .mobile-card-primary-values,
+  .mobile-card-v2-values,
+  .v2-assessment-summary,
+  .v2-issue-columns {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

@@ -615,6 +615,12 @@ def compute_slow_variables_v21(
                     unit="CNY",
                     basis=MetricBasis.DIRECT,
                 ).public_dict(),
+                "special_dividend": metric(
+                    _decimal_or_none(item.get("special_dividend")),
+                    reason="未披露或不适用",
+                    unit="CNY",
+                    basis=MetricBasis.DIRECT,
+                ).public_dict(),
                 "eligible_buyback": metric(
                     verified_buyback,
                     reason="未经回购注销及稀释股本桥验证，不授予回报贡献",

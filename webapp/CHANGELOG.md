@@ -2,6 +2,15 @@
 
 ## 2026-08-04 — shareholder-return v2.1 真实数据接入与统一评估
 
+- FastAPI读取structured current前强制校验v2.1版本、`VALID_RELEASE`、唯一公司、
+  company tier、BLOCKED空分数、RI/ERI成对发布及0—100有限数；不合格release不会
+  暴露给API。watchlist和pipeline状态新增层级计数、可评分公司数与release validity。
+- 前端改为展示`BLOCKED/ESTIMATED/CALCULABLE/VERIFIED`徽标、六领域置信度、行情
+  freshness、指标basis、代理/默认警告和逐公司blocker；删除qB旧卡片，SEEV、简化
+  FCF、资产负债表适配和估值不适用状态直接可见。
+- 新增fail-closed激活canary及版本化人工审批清单。显式设置v2为true时，本地预检、
+  Ali回环检查和公网检查均要求67条合法记录、至少5家同时有真实RI/ERI、每家已人工
+  审批；当前0家会明确拒绝激活。Codex dispatch同样在5家系统门槛前保持关闭。
 - 计算与指标定义升级至`shareholder-return-v2.1.0`：年度有效分配删除qB，未验证
   回购贡献按0但原字段保持null；完整/简化FCF分别使用90%/85%容量，增长按连续
   年限限制正贡献，只有当前估值时不再机械扣0.5%。
