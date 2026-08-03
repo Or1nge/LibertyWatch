@@ -13,7 +13,6 @@ import sys
 import time
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -37,7 +36,17 @@ from liberty_v2.analysis.worker import (  # noqa: E402
     RunResult,
     WorkerConfig,
 )
+from liberty_v2.assessment import assess_company  # noqa: E402
+from liberty_v2.balance_sheet_adapter import (  # noqa: E402
+    load_balance_sheet_assessment,
+    overlay_balance_sheet,
+)
+from liberty_v2.capital_structure import load_capital_structure_registry  # noqa: E402
 from liberty_v2.constants import CALCULATION_VERSION, MODEL, PROMPT_VERSION, REASONING_EFFORT  # noqa: E402
+from liberty_v2.market_observation import (  # noqa: E402
+    load_market_observations,
+    overlay_market_observation,
+)
 from liberty_v2.migration import migrate_v1  # noqa: E402
 from liberty_v2.pipeline import compute_company_snapshot  # noqa: E402
 from liberty_v2.registry import load_metric_definitions, load_policy  # noqa: E402
@@ -79,6 +88,24 @@ def paths() -> dict[str, Path]:
         "runtime_status": root / "status" / "runtime.json",
         "sync_status_structured": root / "status" / "sync-structured.json",
         "sync_status_analysis": root / "status" / "sync-analysis.json",
+        "market_snapshot": Path(
+            os.getenv(
+                "SHAREHOLDER_V2_QUOTE_SNAPSHOT",
+                PROJECT_ROOT / "runtime" / "latest_snapshot.json",
+            )
+        ),
+        "capital_structure": Path(
+            os.getenv(
+                "SHAREHOLDER_V2_CAPITAL_STRUCTURE",
+                PROJECT_ROOT / "config" / "issuer_capital_structure_v1.json",
+            )
+        ),
+        "financial_evidence": Path(
+            os.getenv(
+                "SHAREHOLDER_V2_FUTU_FINANCIAL_EVIDENCE",
+                LIBERTY_ROOT / "data" / "shareholder-v2" / "source-evidence" / "futu-financials",
+            )
+        ),
     }
 
 
@@ -168,6 +195,49 @@ def _staging_inputs() -> list[Path]:
     return sorted(company_root.glob("*.json")) if company_root.is_dir() else []
 
 
+def _fast_context(now: datetime) -> tuple[dict[str, Any], dict[str, Any]]:
+    local = paths()
+    observations = (
+        load_market_observations(local["market_snapshot"], now=now)
+        if local["market_snapshot"].is_file()
+        else {}
+    )
+    registry = load_capital_structure_registry(local["capital_structure"])
+    return observations, registry
+
+
+def _prepare_company_input(
+    raw: Mapping[str, Any],
+    *,
+    now: datetime,
+    observations: Mapping[str, Any],
+    registry: Mapping[str, Any],
+) -> tuple[dict[str, Any], Any]:
+    company_id = str(raw.get("company_id") or "")
+    authorization = registry.get(company_id)
+    if authorization is None:
+        raise ValueError(f"capital-structure authorization missing: {company_id}")
+    observation = observations.get(company_id)
+    prepared = overlay_market_observation(raw, observation)
+    balance = load_balance_sheet_assessment(paths()["financial_evidence"], company_id)
+    prepared = overlay_balance_sheet(
+        prepared,
+        balance,
+        evidence_root=paths()["financial_evidence"],
+    )
+    assessment = assess_company(
+        prepared,
+        authorization=authorization,
+        market_observation=observation,
+        balance_sheet=balance,
+        now=now,
+    )
+    prepared["selected_security_equivalent_value"] = assessment.market_value.public_dict()
+    prepared["selected_input_plan"] = assessment.input_plan.public_dict()
+    prepared["company_assessment"] = assessment.public_dict()
+    return prepared, assessment
+
+
 def command_compute(args: argparse.Namespace) -> int:
     inputs = _staging_inputs()
     if not inputs:
@@ -179,6 +249,7 @@ def command_compute(args: argparse.Namespace) -> int:
     cache_hits = 0
     failures: list[dict[str, str]] = []
     reviewed_overlays = ReviewedOverlayStore(paths()["analysis_output"])
+    observations, registry = _fast_context(now)
     for position, source in enumerate(inputs):
         raw: dict[str, Any] | None = None
         fallback_id = f"invalid-input-{position:03d}"
@@ -194,6 +265,12 @@ def command_compute(args: argparse.Namespace) -> int:
                 company_id=company_id,
                 on_date=now.date(),
             )
+            raw, assessment = _prepare_company_input(
+                raw,
+                now=now,
+                observations=observations,
+                registry=registry,
+            )
             slow, cache_hit = load_or_compute_slow(
                 raw,
                 paths()["slow_cache"] / f"{company_id}.json",
@@ -202,6 +279,7 @@ def command_compute(args: argparse.Namespace) -> int:
             )
             cache_hits += int(cache_hit)
             candidate = compute_company_snapshot(raw, now=now, slow_variables=slow)
+            candidate["readiness_assessment"] = assessment.public_dict()
             companies.append(valid_store.select_publishable(candidate))
         except Exception as error:
             raw_id = str((raw or {}).get("company_id") or "")
@@ -259,113 +337,94 @@ def command_compute(args: argparse.Namespace) -> int:
 
 
 def command_refresh_prices(args: argparse.Namespace) -> int:
+    """Validate the fast market overlay without rewriting slow staging."""
+
     snapshot_path = Path(args.snapshot)
-    payload = json.loads(snapshot_path.read_text(encoding="utf-8"))
-    securities = payload.get("securities")
-    if not isinstance(securities, list):
-        raise ValueError("quote snapshot has no securities array")
-    by_issuer = {str(item.get("issuerId")): item for item in securities if isinstance(item, dict)}
-    market = payload.get("marketData") if isinstance(payload.get("marketData"), dict) else {}
-    fx_rates = market.get("fxRates") if isinstance(market.get("fxRates"), dict) else {}
-    hkd_rate = (fx_rates.get("HKD_CNY") or {}).get("rate") if isinstance(fx_rates.get("HKD_CNY"), dict) else None
-    updated = 0
-    unavailable = 0
-    for path in _staging_inputs():
-        raw = json.loads(path.read_text(encoding="utf-8"))
-        quote_security = by_issuer.get(str(raw.get("company_id")))
-        if quote_security is None:
-            unavailable += 1
-            continue
-        quote = quote_security.get("quote") if isinstance(quote_security.get("quote"), dict) else {}
-        security_id = str(quote_security.get("id") or "")
-        fetched_at = str(market.get("collectedAt") or payload.get("snapshotGeneratedAt") or "")
-        try:
-            fetched_datetime = datetime.fromisoformat(fetched_at.replace("Z", "+00:00"))
-            if fetched_datetime.tzinfo is None:
-                fetched_datetime = fetched_datetime.replace(tzinfo=timezone.utc)
-        except ValueError:
-            fetched_datetime = datetime.now(timezone.utc)
-            fetched_at = fetched_datetime.isoformat()
-        ledger = [
-            item
-            for item in raw.get("raw_data_points", [])
-            if isinstance(item, dict)
-        ]
-        market_points: list[dict[str, Any]] = []
-        for share_class in raw.get("share_classes", []):
-            if str(share_class.get("security_id")) != security_id:
-                continue
-            quoted_price = quote.get("currentPrice")
-            try:
-                positive_price = quoted_price is not None and Decimal(str(quoted_price)) > 0
-            except InvalidOperation:
-                positive_price = False
-            available = quote.get("status") == "available" and positive_price
-            share_class["price"] = str(quote["currentPrice"]) if available else None
-            share_class["price_timestamp"] = quote.get("lastUpdatedAt") if available else None
-            share_class["quote_status"] = "VALID" if available else "MISSING"
-            currency = str(share_class.get("currency") or quote_security.get("currency") or "")
-            if currency == "CNY":
-                fx_value = "1"
-            elif currency == "HKD" and hkd_rate is not None:
-                try:
-                    fx_value = str(hkd_rate) if Decimal(str(hkd_rate)) > 0 else None
-                except InvalidOperation:
-                    fx_value = None
-            else:
-                fx_value = None
-            share_class["fx_to_base"] = fx_value
-            updated += int(available)
-            common = {
-                "company_id": str(raw.get("company_id") or ""),
-                "security_id": security_id,
-                "share_class": share_class.get("share_class"),
-                "source_name": str(market.get("provider") or "futu-opend"),
-                "source_document": snapshot_path.name,
-                "source_url_or_local_path": str(snapshot_path.resolve()),
-                "source_publish_date": fetched_datetime.date().isoformat(),
-                "source_fetch_time": fetched_at,
-                "fiscal_period": f"MARKET_AS_OF_{fetched_datetime.date().isoformat()}",
-                "restatement_status": "CURRENT_MARKET_SNAPSHOT",
-            }
-            market_points.extend(
-                [
-                    {
-                        **common,
-                        "field_id": f"MARKET.{security_id}.price",
-                        "currency": currency or None,
-                        "unit": "currency_per_share",
-                        "value": str(quoted_price) if available else None,
-                        "data_status": "VALID" if available else "MISSING",
-                    },
-                    {
-                        **common,
-                        "field_id": f"MARKET.{security_id}.fx_to_base",
-                        "currency": "CNY",
-                        "unit": "ratio",
-                        "value": fx_value,
-                        "data_status": "VALID" if fx_value is not None else "MISSING",
-                    },
-                ]
-            )
-        replaced_ids = {item["field_id"] for item in market_points}
-        raw["raw_data_points"] = sorted(
-            [item for item in ledger if str(item.get("field_id")) not in replaced_ids]
-            + market_points,
-            key=lambda item: str(item.get("field_id") or ""),
-        )
-        source_summary = raw.setdefault("source_summary", {})
-        source_summary["market_quote"] = {
-            "source_name": str(market.get("provider") or "futu-opend"),
-            "source_fetch_time": str(market.get("collectedAt") or payload.get("snapshotGeneratedAt") or ""),
-            "price_timestamp": quote.get("lastUpdatedAt"),
-            "security_id": security_id,
-            "currency": quote_security.get("currency"),
-            "data_status": "VALID" if quote.get("status") == "available" else "MISSING",
+    now = datetime.now(timezone.utc)
+    observations = load_market_observations(snapshot_path, now=now)
+    staged_ids = {
+        str(json.loads(path.read_text(encoding="utf-8")).get("company_id") or "")
+        for path in _staging_inputs()
+    }
+    freshness_counts: dict[str, int] = {}
+    for observation in observations.values():
+        key = observation.freshness.value
+        freshness_counts[key] = freshness_counts.get(key, 0) + 1
+    dump(
+        {
+            "mode": "NON_MUTATING_MARKET_OVERLAY",
+            "snapshot": snapshot_path.name,
+            "observation_count": len(observations),
+            "matched_staging_companies": len(staged_ids & set(observations)),
+            "unmatched_staging_companies": sorted(staged_ids - set(observations)),
+            "freshness_counts": freshness_counts,
         }
-        atomic_write_json(path, raw)
-    dump({"updated_share_classes": updated, "unmatched_companies": unavailable, "snapshot": snapshot_path.name})
+    )
     return 0
+
+
+def command_readiness(args: argparse.Namespace) -> int:
+    now = datetime.now(timezone.utc)
+    observations, registry = _fast_context(now)
+    rows: list[dict[str, Any]] = []
+    parse_errors: list[dict[str, str]] = []
+    for source in _staging_inputs():
+        try:
+            raw = json.loads(source.read_text(encoding="utf-8"))
+            prepared, assessment = _prepare_company_input(
+                raw,
+                now=now,
+                observations=observations,
+                registry=registry,
+            )
+            rows.append(
+                {
+                    "company_id": assessment.company_id,
+                    "company_name": str(prepared.get("company_name") or ""),
+                    **assessment.public_dict(),
+                }
+            )
+        except Exception as error:
+            parse_errors.append(
+                {
+                    "source": source.name,
+                    "error": f"{type(error).__name__}: {error}",
+                }
+            )
+    tier_counts: dict[str, int] = {}
+    blocker_counts: dict[str, int] = {}
+    for row in rows:
+        tier = str(row["data_tier"])
+        tier_counts[tier] = tier_counts.get(tier, 0) + 1
+        for blocker in row["blockers"]:
+            blocker_counts[blocker] = blocker_counts.get(blocker, 0) + 1
+    report = {
+        "report_version": "shareholder-return-v2.1-unified-assessment-v1",
+        "generated_at": now.isoformat(),
+        "staging_company_count": len(_staging_inputs()),
+        "capital_structure_company_count": len(registry),
+        "market_observation_count": len(observations),
+        "assessed_company_count": len(rows),
+        "parse_error_count": len(parse_errors),
+        "tier_counts": dict(sorted(tier_counts.items())),
+        "blocker_counts": dict(sorted(blocker_counts.items())),
+        "companies": rows,
+        "parse_errors": parse_errors,
+    }
+    if args.output:
+        atomic_write_json(Path(args.output), report)
+    dump(report if not args.compact else {key: report[key] for key in (
+        "report_version",
+        "generated_at",
+        "staging_company_count",
+        "capital_structure_company_count",
+        "market_observation_count",
+        "assessed_company_count",
+        "parse_error_count",
+        "tier_counts",
+        "blocker_counts",
+    )})
+    return 2 if parse_errors else 0
 
 
 def command_dispatch(args: argparse.Namespace) -> int:
@@ -730,6 +789,16 @@ def command_health(args: argparse.Namespace) -> int:
     load_metric_definitions()
     load_policy()
     local = paths()
+    watchlist = json.loads((PROJECT_ROOT / "config" / "watchlist.json").read_text(encoding="utf-8"))
+    expected_company_ids = {
+        str(item.get("issuerId") or "")
+        for item in watchlist.get("securities", [])
+        if isinstance(item, Mapping)
+    }
+    capital_registry = load_capital_structure_registry(
+        local["capital_structure"],
+        expected_company_ids=expected_company_ids,
+    )
     probe_keys = ("jobs", "analysis_output") if args.worker_scope else (
         "root",
         "jobs",
@@ -747,6 +816,7 @@ def command_health(args: argparse.Namespace) -> int:
         "model": MODEL,
         "reasoning_effort": REASONING_EFFORT,
         "jobs": job_store().counts(),
+        "capital_structure_company_count": len(capital_registry),
     }
     if args.codex:
         result["codex"] = CodexWorker(job_store(), worker_config()).startup_check()
@@ -800,7 +870,10 @@ def parser() -> argparse.ArgumentParser:
     compute = sub.add_parser("compute", help="compute and atomically publish structured v2 data")
     compute.add_argument("--force-slow", action="store_true")
     compute.set_defaults(function=command_compute)
-    prices = sub.add_parser("refresh-prices", help="copy validated Linux quote fields into v2 staging")
+    prices = sub.add_parser(
+        "refresh-prices",
+        help="validate the non-mutating latest-snapshot market overlay",
+    )
     prices.add_argument(
         "--snapshot",
         default=os.getenv(
@@ -809,6 +882,13 @@ def parser() -> argparse.ArgumentParser:
         ),
     )
     prices.set_defaults(function=command_refresh_prices)
+    readiness = sub.add_parser(
+        "readiness",
+        help="run the same company assessment used by the production pipeline",
+    )
+    readiness.add_argument("--output")
+    readiness.add_argument("--compact", action="store_true")
+    readiness.set_defaults(function=command_readiness)
     dispatch = sub.add_parser("dispatch", help="evaluate deterministic triggers and enqueue analyses")
     dispatch.add_argument("--events", help="JSON mapping company IDs to versioned event codes")
     dispatch.set_defaults(function=command_dispatch)

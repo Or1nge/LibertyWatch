@@ -1,5 +1,18 @@
 # Change log
 
+## 2026-08-04 — shareholder-return v2.1 真实数据接入与统一评估
+
+- 新增67家公司版本化资本结构授权表和SEEV解析器；供应商总市值必须通过当前
+  隐含等价股数与官方股数的动态2%/5%检查，A/H还必须核清分配权，失败时保留
+  `null/BLOCKED`，不会回退到未经授权的单一市场放大值。
+- `refresh-prices`改为只校验行情覆盖层；生产compute直接读取每分钟快照中的价格、
+  市场状态、总市值、PE/PE-TTM、PB、EPS、每股净资产和汇率，不再修改慢staging。
+- 新增Futu资产负债表适配器、SelectedInputPlan、六领域置信度和统一assessment；
+  readiness与pipeline共用同一判断，只有实际选中的输入才需要逐字段来源。
+- 将release合法性、`BLOCKED/ESTIMATED/CALCULABLE/VERIFIED`、指标basis与
+  `CURRENT/MARKET_CLOSED_CURRENT/STALE_LAST_GOOD`拆为正交状态。新增8项专项测试；
+  全量Python测试255项通过、6项跳过，前端测试通过。
+
 ## 2026-08-03 — 56家公司来源账本受控导入
 
 - 新增现金流、普通股息和注销事实的纯读转换器；所有输入均复核bundle manifest、

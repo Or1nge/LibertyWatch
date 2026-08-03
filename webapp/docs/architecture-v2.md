@@ -1,6 +1,6 @@
 # Liberty 股东回报 v2 实际架构
 
-更新日期：2026-08-03
+更新日期：2026-08-04
 
 ## 审计结论
 
@@ -29,9 +29,10 @@
 Futu/年报/公告
   -> Linux原始文件与SQLite
   -> v2 staging（逐字段来源、币种、单位、财年、状态）
-  -> Decimal慢变量缓存 + 价格快变量
-  -> 对账 + VALID/PARTIAL/INVALID/STALE + 最后合法快照
-  -> structured manifest release
+  + latest_snapshot只读快变量 + 资本结构授权 + 资产负债表适配
+  -> SelectedInputPlan + 统一assessment + Decimal慢变量缓存
+  -> Release Validity / Company Data Tier / Metric Basis / Freshness
+  -> mixed-tier structured manifest release
   -> 确定性触发器 -> SQLite job -> 不可变输入目录
   -> 本地Codex CLI gpt-5.6-sol/xhigh/read-only
   -> 严格JSON Schema -> Linux完整运行目录
@@ -51,6 +52,9 @@ FastAPI 不抓取、不计算、不调用模型，也不等待分析任务。浏
 | 纯计算与评分 | `liberty_v2/calculations.py` |
 | 行业覆盖 | `liberty_v2/coverage.py` |
 | 慢/快变量编排 | `liberty_v2/pipeline.py`、`slow_cache.py` |
+| 快行情与SEEV | `market_observation.py`、`market_value_resolver.py`、`capital_structure.py` |
+| 资产负债表与输入选择 | `balance_sheet_adapter.py`、`input_resolution.py` |
+| 统一评估与置信度 | `assessment.py`、`confidence.py` |
 | 来源与对账 | `models.py`、`validation.py` |
 | 否决项 | `veto.py` |
 | 最后合法快照 | `snapshot_store.py` |
@@ -66,7 +70,8 @@ FastAPI 不抓取、不计算、不调用模型，也不等待分析任务。浏
 
 ## 发布失败语义
 
-单家公司异常会生成自己的失败状态，不中断其他公司。关键来源、A/H 市值或对账
-失败时，推荐值关闭；有历史合法快照则发布该快照并标记更新受阻。Codex 失败只
+单家公司数据不足会生成合法的`BLOCKED`记录，不中断或否定整批release。身份、
+财年、币种、单位、数量级、核心来源或SEEV授权失败时关闭分数；未计入的回购和
+不适用对账不会造成伪失败。有历史合法快照则发布该快照并标记更新受阻。Codex 失败只
 改变独立的公开任务状态，绝不阻塞 structured release 或覆盖最后成功报告；
 stderr、认证状态、内部错误消息和本地路径不进入公网release。

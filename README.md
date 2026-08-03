@@ -21,6 +21,8 @@
 - `data/shareholder-v2/reconciliation/{cashflow,dividend,cancellation}-v1/`：
   候选逐笔对账后的隔离账本、汇总报告和SHA-256清单；仍需受控导入，不能据此
   把整家公司直接标为`VALID`；
+- `webapp/config/issuer_capital_structure_v1.json`：67家当前监控证券的资本结构、
+  SEEV语义与供应商市值授权表；未完成权利或股数核验的公司保持未授权；
 - `scripts/dividend_buyback_monitor.py`：初始化、增量采集和 Codex 维护入口。
 
 `webapp/` 是本仓库的 Web 应用子目录。仓库根目录同时跟踪数据采集代码、公开
@@ -40,6 +42,10 @@
 
 根目录的数据侧仍是原始数据和旧事件监控来源；Ali 只接收经过校验的公开
 release。新版迁移不会删除或改写本目录的原始历史数据。
+
+v2.1 计算前直接把每分钟 `latest_snapshot.json` 作为内存快变量覆盖层读取，
+不再把价格、汇率和估值写回慢 staging。统一 assessment 只要求实际选中的
+来源字段；缺少未计入的回购或不适用对账不会使整批 release 非法。
 
 ## 工作流
 

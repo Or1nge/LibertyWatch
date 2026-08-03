@@ -24,6 +24,7 @@ SLOW_INPUT_KEYS = (
     "reviewed_overlay_scores",
     "risk_scores",
     "veto_inputs",
+    "balance_sheet",
     "balance_sheet_history",
     "has_material_dilution",
 )

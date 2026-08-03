@@ -1,0 +1,1349 @@
+{
+  "schema_version": "issuer-capital-structure-v1",
+  "generated_from": "config/watchlist.json plus controlled share-capital-v1 evidence",
+  "authorization_policy": {
+    "vendor_implied_share_difference_reliable_max": "0.02",
+    "vendor_implied_share_difference_estimated_max": "0.05",
+    "vendor_implied_share_difference_blocked_above": "0.05",
+    "unknown_is_not_zero": true
+  },
+  "companies": [
+    {
+      "company_id": "A600900",
+      "selected_security_id": "SH600900",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "A600025",
+      "selected_security_id": "SH600025",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "A600674",
+      "selected_security_id": "SH600674",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "A600941",
+      "selected_security_id": "SH600941",
+      "structure_kind": "A_H",
+      "material_share_classes": [
+        "A",
+        "H"
+      ],
+      "distribution_rights_equal": null,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null,
+      "notes": "A/H rights and current equivalent shares remain unresolved."
+    },
+    {
+      "company_id": "HK0700",
+      "selected_security_id": "HK0700",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "H"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "A000333",
+      "selected_security_id": "SZ000333",
+      "structure_kind": "A_H",
+      "material_share_classes": [
+        "A",
+        "H"
+      ],
+      "distribution_rights_equal": null,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null,
+      "notes": "A/H rights and current equivalent shares remain unresolved."
+    },
+    {
+      "company_id": "A600690",
+      "selected_security_id": "SH600690",
+      "structure_kind": "A_H",
+      "material_share_classes": [
+        "A",
+        "H"
+      ],
+      "distribution_rights_equal": null,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null,
+      "notes": "A/H rights and current equivalent shares remain unresolved."
+    },
+    {
+      "company_id": "A000921",
+      "selected_security_id": "SZ000921",
+      "structure_kind": "A_H",
+      "material_share_classes": [
+        "A",
+        "H"
+      ],
+      "distribution_rights_equal": null,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null,
+      "notes": "A/H rights and current equivalent shares remain unresolved."
+    },
+    {
+      "company_id": "SZ002032",
+      "selected_security_id": "SZ002032",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "VENDOR_COMPANY_MARKET_VALUE",
+      "vendor_value_authorized": true,
+      "direct_equivalent_shares_authorized": true,
+      "official_equivalent_shares": "801660653",
+      "authorization_source_ids": [
+        "SECURITY.SZ002032.issued_shares"
+      ],
+      "as_of_date": "2026-04-03",
+      "authorization_quote_observed_at": "2026-08-03T16:48:05.319Z",
+      "observed_implied_equivalent_shares": "799848156",
+      "observed_relative_difference": "0.002260927978961192698077948451"
+    },
+    {
+      "company_id": "SH600309",
+      "selected_security_id": "SH600309",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "SH600426",
+      "selected_security_id": "SH600426",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": true,
+      "official_equivalent_shares": "2123219998",
+      "authorization_source_ids": [
+        "SECURITY.SH600426.issued_shares"
+      ],
+      "as_of_date": "2026-03-31",
+      "authorization_quote_observed_at": "2026-08-03T16:48:05.319Z",
+      "observed_implied_equivalent_shares": "2749943015",
+      "observed_relative_difference": "0.2951757319497515395952859709",
+      "notes": "Futu implied shares differ from the official count by more than 5%; vendor value is not authorized."
+    },
+    {
+      "company_id": "SZ002430",
+      "selected_security_id": "SZ002430",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "SH600298",
+      "selected_security_id": "SH600298",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "VENDOR_COMPANY_MARKET_VALUE",
+      "vendor_value_authorized": true,
+      "direct_equivalent_shares_authorized": true,
+      "official_equivalent_shares": "867978471",
+      "authorization_source_ids": [
+        "SECURITY.SH600298.issued_shares"
+      ],
+      "as_of_date": "2026-03-31",
+      "authorization_quote_observed_at": "2026-08-03T16:48:05.319Z",
+      "observed_implied_equivalent_shares": "867848671",
+      "observed_relative_difference": "0.0001495428796182664765656382277"
+    },
+    {
+      "company_id": "SH600761",
+      "selected_security_id": "SH600761",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "SH603298",
+      "selected_security_id": "SH603298",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "SZ300470",
+      "selected_security_id": "SZ300470",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "SH600885",
+      "selected_security_id": "SH600885",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "SH600563",
+      "selected_security_id": "SH600563",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "SZ002595",
+      "selected_security_id": "SZ002595",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": true,
+      "official_equivalent_shares": "800000000",
+      "authorization_source_ids": [
+        "SECURITY.SZ002595.issued_shares"
+      ],
+      "as_of_date": "2026-03-31",
+      "authorization_quote_observed_at": "2026-08-03T16:48:05.319Z",
+      "observed_implied_equivalent_shares": "1160000000",
+      "observed_relative_difference": "0.45",
+      "notes": "Futu implied shares differ from the official count by more than 5%; vendor value is not authorized."
+    },
+    {
+      "company_id": "SZ002050",
+      "selected_security_id": "SZ002050",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "SZ300124",
+      "selected_security_id": "SZ300124",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "SH603195",
+      "selected_security_id": "SH603195",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "SZ002003",
+      "selected_security_id": "SZ002003",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "VENDOR_COMPANY_MARKET_VALUE",
+      "vendor_value_authorized": true,
+      "direct_equivalent_shares_authorized": true,
+      "official_equivalent_shares": "1188889653",
+      "authorization_source_ids": [
+        "SECURITY.SZ002003.issued_shares"
+      ],
+      "as_of_date": "2026-04-17",
+      "authorization_quote_observed_at": "2026-08-03T16:48:05.319Z",
+      "observed_implied_equivalent_shares": "1188889653",
+      "observed_relative_difference": "0"
+    },
+    {
+      "company_id": "SH600529",
+      "selected_security_id": "SH600529",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "SZ300012",
+      "selected_security_id": "SZ300012",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "A600887",
+      "selected_security_id": "SH600887",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "SH603288",
+      "selected_security_id": "SH603288",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "SH600600",
+      "selected_security_id": "SH600600",
+      "structure_kind": "A_H",
+      "material_share_classes": [
+        "A",
+        "H"
+      ],
+      "distribution_rights_equal": null,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": "1364195121",
+      "authorization_source_ids": [
+        "SECURITY.SH600600.issued_shares",
+        "SECURITY.HK00168.issued_shares"
+      ],
+      "as_of_date": "2026-03-27",
+      "authorization_quote_observed_at": "2026-08-03T16:48:05.319Z",
+      "observed_implied_equivalent_shares": "1364195121",
+      "observed_relative_difference": "0",
+      "notes": "Official class counts exist, but distribution-right equivalence is unresolved; SEEV remains blocked."
+    },
+    {
+      "company_id": "SH600132",
+      "selected_security_id": "SH600132",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "SZ000999",
+      "selected_security_id": "SZ000999",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "A600750",
+      "selected_security_id": "SH600750",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "SZ300760",
+      "selected_security_id": "SZ300760",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "HK9987",
+      "selected_security_id": "HK9987",
+      "structure_kind": "MULTI_CLASS",
+      "material_share_classes": [
+        "ORDINARY"
+      ],
+      "distribution_rights_equal": null,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null,
+      "notes": "Class/listing relationship remains unresolved for SEEV."
+    },
+    {
+      "company_id": "HK0322",
+      "selected_security_id": "HK0322",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "H"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "VENDOR_COMPANY_MARKET_VALUE",
+      "vendor_value_authorized": true,
+      "direct_equivalent_shares_authorized": true,
+      "official_equivalent_shares": "5636516360",
+      "authorization_source_ids": [
+        "SECURITY.HK0322.issued_shares"
+      ],
+      "as_of_date": "2026-04-27",
+      "authorization_quote_observed_at": "2026-08-03T16:48:05.319Z",
+      "observed_implied_equivalent_shares": "5637386360",
+      "observed_relative_difference": "0.0001543506564043752726728535567"
+    },
+    {
+      "company_id": "HK0220",
+      "selected_security_id": "HK0220",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "H"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "HK0291",
+      "selected_security_id": "HK0291",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "H"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "HK2313",
+      "selected_security_id": "HK2313",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "H"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "HK0669",
+      "selected_security_id": "HK0669",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "H"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "VENDOR_COMPANY_MARKET_VALUE",
+      "vendor_value_authorized": true,
+      "direct_equivalent_shares_authorized": true,
+      "official_equivalent_shares": "1829209941",
+      "authorization_source_ids": [
+        "SECURITY.HK0669.issued_shares"
+      ],
+      "as_of_date": "2026-03-30",
+      "authorization_quote_observed_at": "2026-08-03T16:48:05.319Z",
+      "observed_implied_equivalent_shares": "1827720441",
+      "observed_relative_difference": "0.0008142859748431686442491294114"
+    },
+    {
+      "company_id": "HK1882",
+      "selected_security_id": "HK1882",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "H"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "A601728",
+      "selected_security_id": "SH601728",
+      "structure_kind": "A_H",
+      "material_share_classes": [
+        "A",
+        "H"
+      ],
+      "distribution_rights_equal": null,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null,
+      "notes": "A/H rights and current equivalent shares remain unresolved."
+    },
+    {
+      "company_id": "A600886",
+      "selected_security_id": "SH600886",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "A600406",
+      "selected_security_id": "SH600406",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "VENDOR_COMPANY_MARKET_VALUE",
+      "vendor_value_authorized": true,
+      "direct_equivalent_shares_authorized": true,
+      "official_equivalent_shares": "8031756156",
+      "authorization_source_ids": [
+        "SECURITY.SH600406.issued_shares"
+      ],
+      "as_of_date": "2026-04-30",
+      "authorization_quote_observed_at": "2026-08-03T16:48:05.319Z",
+      "observed_implied_equivalent_shares": "8031756156",
+      "observed_relative_difference": "0"
+    },
+    {
+      "company_id": "SZ002028",
+      "selected_security_id": "SZ002028",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "VENDOR_COMPANY_MARKET_VALUE",
+      "vendor_value_authorized": true,
+      "direct_equivalent_shares_authorized": true,
+      "official_equivalent_shares": "782057732",
+      "authorization_source_ids": [
+        "SECURITY.SZ002028.issued_shares"
+      ],
+      "as_of_date": "2026-04-18",
+      "authorization_quote_observed_at": "2026-08-03T16:48:05.319Z",
+      "observed_implied_equivalent_shares": "782573282",
+      "observed_relative_difference": "0.0006592224319316620476811550787"
+    },
+    {
+      "company_id": "SH603556",
+      "selected_security_id": "SH603556",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "SZ002158",
+      "selected_security_id": "SZ002158",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "VENDOR_COMPANY_MARKET_VALUE",
+      "vendor_value_authorized": true,
+      "direct_equivalent_shares_authorized": true,
+      "official_equivalent_shares": "534724139",
+      "authorization_source_ids": [
+        "SECURITY.SZ002158.issued_shares"
+      ],
+      "as_of_date": "2026-04-25",
+      "authorization_quote_observed_at": "2026-08-03T16:48:05.319Z",
+      "observed_implied_equivalent_shares": "534724139",
+      "observed_relative_difference": "0"
+    },
+    {
+      "company_id": "SH600660",
+      "selected_security_id": "SH600660",
+      "structure_kind": "A_H",
+      "material_share_classes": [
+        "A",
+        "H"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "VENDOR_SELECTED_SECURITY_EQUIVALENT_VALUE",
+      "vendor_value_authorized": true,
+      "direct_equivalent_shares_authorized": true,
+      "official_equivalent_shares": "2609743532",
+      "authorization_source_ids": [
+        "SECURITY.SH600660.issued_shares",
+        "SECURITY.HK03606.issued_shares"
+      ],
+      "as_of_date": "2026-03-18",
+      "authorization_quote_observed_at": "2026-08-03T16:48:05.319Z",
+      "observed_implied_equivalent_shares": "2609743532",
+      "observed_relative_difference": "0"
+    },
+    {
+      "company_id": "SZ002001",
+      "selected_security_id": "SZ002001",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "SH601100",
+      "selected_security_id": "SH601100",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "SZ300285",
+      "selected_security_id": "SZ300285",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "VENDOR_COMPANY_MARKET_VALUE",
+      "vendor_value_authorized": true,
+      "direct_equivalent_shares_authorized": true,
+      "official_equivalent_shares": "997048299",
+      "authorization_source_ids": [
+        "SECURITY.SZ300285.issued_shares"
+      ],
+      "as_of_date": "2026-04-21",
+      "authorization_quote_observed_at": "2026-08-03T16:48:05.319Z",
+      "observed_implied_equivalent_shares": "997048299",
+      "observed_relative_difference": "0"
+    },
+    {
+      "company_id": "SZ002138",
+      "selected_security_id": "SZ002138",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "VENDOR_COMPANY_MARKET_VALUE",
+      "vendor_value_authorized": true,
+      "direct_equivalent_shares_authorized": true,
+      "official_equivalent_shares": "806318354",
+      "authorization_source_ids": [
+        "SECURITY.SZ002138.issued_shares"
+      ],
+      "as_of_date": "2026-02-28",
+      "authorization_quote_observed_at": "2026-08-03T16:48:05.319Z",
+      "observed_implied_equivalent_shares": "806318354",
+      "observed_relative_difference": "0"
+    },
+    {
+      "company_id": "SZ002444",
+      "selected_security_id": "SZ002444",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "SH603338",
+      "selected_security_id": "SH603338",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "SH601058",
+      "selected_security_id": "SH601058",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "SZ002507",
+      "selected_security_id": "SZ002507",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "VENDOR_COMPANY_MARKET_VALUE",
+      "vendor_value_authorized": true,
+      "direct_equivalent_shares_authorized": true,
+      "official_equivalent_shares": "1153919028",
+      "authorization_source_ids": [
+        "SECURITY.SZ002507.issued_shares"
+      ],
+      "as_of_date": "2026-03-28",
+      "authorization_quote_observed_at": "2026-08-03T16:48:05.319Z",
+      "observed_implied_equivalent_shares": "1153919028",
+      "observed_relative_difference": "0"
+    },
+    {
+      "company_id": "SH603899",
+      "selected_security_id": "SH603899",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "VENDOR_COMPANY_MARKET_VALUE",
+      "vendor_value_authorized": true,
+      "direct_equivalent_shares_authorized": true,
+      "official_equivalent_shares": "920970377",
+      "authorization_source_ids": [
+        "SECURITY.SH603899.issued_shares"
+      ],
+      "as_of_date": "2026-04-01",
+      "authorization_quote_observed_at": "2026-08-03T16:48:05.319Z",
+      "observed_implied_equivalent_shares": "915795377",
+      "observed_relative_difference": "0.005619073239746559188189828173"
+    },
+    {
+      "company_id": "SH603345",
+      "selected_security_id": "SH603345",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "SZ000423",
+      "selected_security_id": "SZ000423",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "VENDOR_COMPANY_MARKET_VALUE",
+      "vendor_value_authorized": true,
+      "direct_equivalent_shares_authorized": true,
+      "official_equivalent_shares": "643976824",
+      "authorization_source_ids": [
+        "SECURITY.SZ000423.issued_shares"
+      ],
+      "as_of_date": "2026-03-20",
+      "authorization_quote_observed_at": "2026-08-03T16:48:05.319Z",
+      "observed_implied_equivalent_shares": "639826824",
+      "observed_relative_difference": "0.006444331294754793846431964142"
+    },
+    {
+      "company_id": "SH600993",
+      "selected_security_id": "SH600993",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "SZ002223",
+      "selected_security_id": "SZ002223",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "A"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "HK2460",
+      "selected_security_id": "HK2460",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "H"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "HK2020",
+      "selected_security_id": "HK2020",
+      "structure_kind": "DUAL_COUNTER",
+      "material_share_classes": [
+        "ORDINARY"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null,
+      "notes": "HKD/RMB counters represent one legal share class."
+    },
+    {
+      "company_id": "HK1876",
+      "selected_security_id": "HK1876",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "H"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "HK1179",
+      "selected_security_id": "HK1179",
+      "structure_kind": "ADS",
+      "material_share_classes": [
+        "ORDINARY",
+        "ADS_REPRESENTATION"
+      ],
+      "distribution_rights_equal": null,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null,
+      "notes": "ADS ratio is not yet authorized."
+    },
+    {
+      "company_id": "SZ002352",
+      "selected_security_id": "SZ002352",
+      "structure_kind": "A_H",
+      "material_share_classes": [
+        "A",
+        "H"
+      ],
+      "distribution_rights_equal": null,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": "5039430409",
+      "authorization_source_ids": [
+        "SECURITY.SZ002352.issued_shares",
+        "SECURITY.HK06936.issued_shares"
+      ],
+      "as_of_date": "2026-03-31",
+      "authorization_quote_observed_at": "2026-08-03T16:48:05.319Z",
+      "observed_implied_equivalent_shares": "5265308078",
+      "observed_relative_difference": "0.04482206334203989203256800048",
+      "notes": "Official class counts exist, but distribution-right equivalence is unresolved; SEEV remains blocked."
+    },
+    {
+      "company_id": "HK2057",
+      "selected_security_id": "HK2057",
+      "structure_kind": "ADS",
+      "material_share_classes": [
+        "ORDINARY",
+        "ADS_REPRESENTATION"
+      ],
+      "distribution_rights_equal": null,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null,
+      "notes": "ADS ratio is not yet authorized."
+    },
+    {
+      "company_id": "HK0179",
+      "selected_security_id": "HK0179",
+      "structure_kind": "SINGLE_CLASS",
+      "material_share_classes": [
+        "H"
+      ],
+      "distribution_rights_equal": true,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null
+    },
+    {
+      "company_id": "SH688235",
+      "selected_security_id": "SH688235",
+      "structure_kind": "MULTI_CLASS",
+      "material_share_classes": [
+        "A",
+        "OVERSEAS_ORDINARY"
+      ],
+      "distribution_rights_equal": null,
+      "selected_security_rights_factor": "1",
+      "vendor_total_market_value_semantics": "UNRESOLVED",
+      "vendor_value_authorized": false,
+      "direct_equivalent_shares_authorized": false,
+      "official_equivalent_shares": null,
+      "authorization_source_ids": [],
+      "as_of_date": null,
+      "authorization_quote_observed_at": null,
+      "observed_implied_equivalent_shares": null,
+      "observed_relative_difference": null,
+      "notes": "Class/listing relationship remains unresolved for SEEV."
+    }
+  ]
+}
