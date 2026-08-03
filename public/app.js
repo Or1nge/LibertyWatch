@@ -1127,7 +1127,7 @@ function mobileSecurityCard(security) {
           target.className
         )}</span>
       </div>
-      <div class="mobile-card-values">
+      <div class="mobile-card-values mobile-card-primary-values">
         <span class="mobile-card-value">
           <small>现价</small>
           <strong data-security-id="${id}" data-field="price">${priceMarkup(
@@ -1150,6 +1150,12 @@ function mobileSecurityCard(security) {
           )}" data-security-id="${id}" data-field="distance">${formatPct(
             distance,
             { signed: true }
+          )}</strong>
+        </span>
+        <span class="mobile-card-value is-core-return">
+          <small>股息回购率</small>
+          <strong data-security-id="${id}" data-field="shareholder-yield">${formatPct(
+            security.currentShareholderYieldPct
           )}</strong>
         </span>
       </div>

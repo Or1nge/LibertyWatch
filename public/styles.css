@@ -4360,3 +4360,129 @@ body::before {
     align-items: flex-start;
   }
 }
+
+@media (max-width: 720px) {
+  /* Keep the dense mobile cards readable without hiding return metrics. */
+  .mobile-security-card {
+    padding: 18px 16px;
+  }
+
+  .mobile-security-card .security-name {
+    gap: 11px;
+  }
+
+  .mobile-security-card .security-avatar {
+    width: 38px;
+    height: 38px;
+    font-size: 12px;
+  }
+
+  .mobile-security-card .security-name strong {
+    max-width: 160px;
+    font-size: 15px;
+    line-height: 1.25;
+  }
+
+  .mobile-security-card .security-name small {
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  .mobile-security-card .badge {
+    min-height: 28px;
+    padding-inline: 10px;
+    font-size: 11px;
+  }
+
+  .mobile-card-values {
+    display: grid;
+    align-items: start;
+    gap: 10px;
+  }
+
+  .mobile-card-primary-values {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-top: 17px;
+  }
+
+  .mobile-card-value small {
+    min-height: 15px;
+    margin-bottom: 6px;
+    font-size: 10.5px;
+    line-height: 1.35;
+    white-space: nowrap;
+  }
+
+  .mobile-card-value strong {
+    font-size: 15px;
+    font-weight: 760;
+    line-height: 1.25;
+  }
+
+  .mobile-card-value .price-yield {
+    width: 100%;
+    min-width: 0;
+    padding: 6px 5px;
+    font-size: 14px;
+  }
+
+  .mobile-card-value.is-core-return strong {
+    font-weight: 820;
+  }
+
+  .metric-label,
+  .drawer-metric small,
+  .chart-head > div > small {
+    font-size: 11px;
+  }
+
+  .drawer-title-line h2 {
+    font-size: 21px;
+  }
+
+  .drawer-title-line span,
+  .drawer-title-meta {
+    font-size: 12px;
+  }
+
+  .drawer-metric strong {
+    font-size: 20px;
+  }
+
+  .drawer-metric.primary strong {
+    font-size: 30px;
+  }
+
+  .chart-head h3,
+  .drawer-section h3 {
+    font-size: 15px;
+  }
+
+  .chart-legend span,
+  .target-model-note,
+  .valuation-model-note {
+    font-size: 11px;
+  }
+
+  .drawer-section p,
+  .drawer-section li {
+    font-size: 12px;
+  }
+
+  .valuation-cell small,
+  .target-cell small {
+    font-size: 10.5px;
+  }
+
+  .valuation-cell strong,
+  .target-cell strong {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 360px) {
+  .mobile-card-primary-values {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -145,3 +145,20 @@ test("watchlist table keeps horizontal containment without trapping page wheel",
   assert.match(rule, /overscroll-behavior-y:\s*auto/);
   assert.doesNotMatch(rule, /overscroll-behavior:\s*contain/);
 });
+
+test("mobile cards show shareholder yield with readable responsive typography", () => {
+  const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
+  const css = readFileSync(
+    new URL("../public/styles.css", import.meta.url),
+    "utf8"
+  );
+  const cardSource = app.slice(
+    app.indexOf("function mobileSecurityCard"),
+    app.indexOf("function watchlistPanel")
+  );
+
+  assert.match(cardSource, /<small>股息回购率<\/small>/);
+  assert.match(cardSource, /data-field="shareholder-yield"/);
+  assert.match(css, /\.mobile-card-primary-values\s*\{[^}]*repeat\(4,/s);
+  assert.match(css, /\.mobile-card-value strong\s*\{[^}]*font-size:\s*15px/s);
+});
