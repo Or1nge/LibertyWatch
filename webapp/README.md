@@ -233,7 +233,8 @@ PE、PB 和七项快照字段的覆盖数量。运行时签名只忽略上述明
 港股清单存在时，collector 还会读取并缓存 ECB 日参考汇率，缓存文件默认是
 `runtime/ecb_hkd_cny.json`；汇率失败不阻断 Futu 行情快照。
 systemd 服务只额外开放富途 SDK 自身的
-`~/.com.futunn.FutuOpenD/Log` 日志目录写权限；Home 其余位置继续保持只读。
+`~/.com.futunn.FutuOpenD/Log` 日志目录和股东回报v2行情交接目录
+`/var/lib/liberty/shareholder-v2/inputs`写权限；Home及其他生产目录继续保持只读。
 
 股东回报v2.1不会再通过 `refresh-prices` 改写慢staging。该命令只验证67家公司
 行情覆盖和freshness；`compute`与`readiness`直接读取同一 `latest_snapshot.json`

@@ -49,6 +49,10 @@ sudo -u <LIBERTY_SERVICE_USER> env HOME=<service-home> ssh -G <ALI_SSH_HOST> >/d
 SHAREHOLDER_V2_QUOTE_SNAPSHOT=/var/lib/liberty/shareholder-v2/inputs/latest_snapshot.json
 ```
 
+同时重新安装仓库中的`systemd/liberty-quote-push.service`并执行
+`systemctl --user daemon-reload`；该单元只对白名单中的整个`inputs`目录开放写入，
+因为原子替换需要先在目标目录创建临时文件，不能只开放现有JSON文件。
+
 然后按安装器打印的命令执行一次 `migrate --apply`。占位迁移不会改写生产原始
 数据；回填来源账本后才可能产生 VALID 公司。
 
