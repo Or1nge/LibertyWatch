@@ -879,13 +879,16 @@ def command_sync(args: argparse.Namespace) -> int:
             }
         )
         return 0
-    if args.channel == "structured" and not shareholder_screen_enabled():
-        raise RuntimeError("structured sync requires SHAREHOLDER_SCREEN_ENABLED=true")
-    if args.channel == "analysis" and codex_analysis_mode() != "PUBLIC":
-        raise RuntimeError("analysis sync requires CODEX_ANALYSIS_MODE=PUBLIC")
+    validate_sync_mode(args.channel)
     synchronizer(args.channel).sync(release, channel=args.channel)
     dump(runtime_status({"last_successful_sync_channel": args.channel, "last_successful_sync_release": release.name}))
     return 0
+
+
+def validate_sync_mode(channel: str) -> None:
+    """Allow explicit structured pre-staging while keeping analyses private."""
+    if channel == "analysis" and codex_analysis_mode() != "PUBLIC":
+        raise RuntimeError("analysis sync requires CODEX_ANALYSIS_MODE=PUBLIC")
 
 
 def _published_analysis_state() -> dict[str, Any] | None:

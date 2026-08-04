@@ -44,6 +44,8 @@ CODEX_ANALYSIS_MODE=OFF
 `INTERNAL`允许任务、验证和本地analysis release，但不向Ali发布；只有`PUBLIC`
 才加载和同步analysis。公开筛选激活采用一次全局审批，绑定计算版本、policy SHA、
 public contract SHA、批准时间与复核人。默认审批文件保持关闭。
+显式`sync --channel structured`可在筛选开关关闭时先把已校验release预置到Ali；
+这不会让Web读取新版。analysis同步仍严格要求`CODEX_ANALYSIS_MODE=PUBLIC`。
 
 生产安装器先将代码和配置复制到incoming release，用incoming解释器运行
 `health-check`并核对watchlist与公司配置均为67家，成功后才原子切换`current`。

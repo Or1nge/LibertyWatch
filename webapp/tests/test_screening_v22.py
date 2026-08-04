@@ -174,7 +174,7 @@ def test_installer_copies_required_config_and_smokes_before_switch() -> None:
 
 
 def test_feature_modes_default_closed_and_old_flag_not_mapped(monkeypatch: pytest.MonkeyPatch) -> None:
-    from scripts.shareholder_v2 import codex_analysis_mode, shareholder_screen_enabled
+    from scripts.shareholder_v2 import codex_analysis_mode, shareholder_screen_enabled, validate_sync_mode
 
     monkeypatch.delenv("SHAREHOLDER_SCREEN_ENABLED", raising=False)
     monkeypatch.delenv("CODEX_ANALYSIS_MODE", raising=False)
@@ -183,3 +183,11 @@ def test_feature_modes_default_closed_and_old_flag_not_mapped(monkeypatch: pytes
     for mode in ("OFF", "INTERNAL", "PUBLIC"):
         monkeypatch.setenv("CODEX_ANALYSIS_MODE", mode)
         assert codex_analysis_mode() == mode
+
+    monkeypatch.setenv("SHAREHOLDER_SCREEN_ENABLED", "false")
+    monkeypatch.setenv("CODEX_ANALYSIS_MODE", "OFF")
+    validate_sync_mode("structured")
+    with pytest.raises(RuntimeError, match="CODEX_ANALYSIS_MODE=PUBLIC"):
+        validate_sync_mode("analysis")
+    monkeypatch.setenv("CODEX_ANALYSIS_MODE", "PUBLIC")
+    validate_sync_mode("analysis")
