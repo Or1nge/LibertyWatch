@@ -95,6 +95,7 @@ install -m 0644 "${PROJECT_ROOT}/requirements-worker.txt" "${RELEASE_DIR}/"
 python3 -m venv "${RELEASE_DIR}/.venv"
 "${RELEASE_DIR}/.venv/bin/pip" install --disable-pip-version-check -r "${RELEASE_DIR}/requirements-worker.txt"
 chown -R root:root "${RELEASE_DIR}"
+find "${RELEASE_DIR}/liberty_v2" "${RELEASE_DIR}/analysis" -type f -exec chmod 0644 {} +
 find "${RELEASE_DIR}" -type d -exec chmod 0755 {} +
 
 install -d -m 0750 -o root -g root /etc/liberty

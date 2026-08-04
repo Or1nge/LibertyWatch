@@ -170,6 +170,7 @@ def test_installer_copies_required_config_and_smokes_before_switch() -> None:
     text = (PROJECT / "scripts" / "install_shareholder_v2_services.sh").read_text(encoding="utf-8")
     assert "issuer_capital_structure_v1.json" in text
     assert "health-check" in text and "67-company configuration coverage" in text
+    assert '"${RELEASE_DIR}/liberty_v2" "${RELEASE_DIR}/analysis" -type f -exec chmod 0644' in text
     assert text.index("health-check") < text.index('mv -Tf "${RELEASE_ROOT}/.current-${RELEASE_ID}"')
 
 
