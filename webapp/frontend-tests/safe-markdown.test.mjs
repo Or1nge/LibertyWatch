@@ -46,7 +46,6 @@ test("metric explanations and v2 detail are accessible display-only UI", () => {
   assert.match(app, /freshnessLabel/);
   assert.match(app, /screeningWarningLabel/);
   assert.match(app, /function analysisConclusion/);
-  assert.match(app, /INITIAL_TRIGGER/);
 });
 
 test("company detail uses readable desktop type and responsive source cards", () => {

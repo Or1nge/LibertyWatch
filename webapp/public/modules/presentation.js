@@ -177,6 +177,19 @@ export function clamp(value, minimum, maximum) {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
+export function humanizeAnalysisConclusion(value, fallback) {
+  const conclusion = String(value ?? "").trim();
+  if (!conclusion) return fallback;
+  if (!/机械触发|触发有效性|确定性研究触发|INITIAL_TRIGGER|\bV[12]_/.test(conclusion)) {
+    return conclusion;
+  }
+  const cleaned = conclusion
+    .replace(/机械触发仍成立|触发有效性已确认|确定性研究触发/g, "")
+    .replace(/^[，,；;：:\s]*(?:但|不过)?[，,；;：:\s]*/, "")
+    .trim();
+  return cleaned && !/INITIAL_TRIGGER|\bV[12]_/.test(cleaned) ? cleaned : fallback;
+}
+
 function getSortValue(security, key) {
   const screening = security.shareholderReturnV2?.schema_version === "shareholder-screen-v2"
     ? security.shareholderReturnV2

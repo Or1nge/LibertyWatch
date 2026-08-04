@@ -15,6 +15,7 @@ import {
   formatPrice,
   formatShortDate,
   heatLabel,
+  humanizeAnalysisConclusion,
   initials,
   isFiniteNumber,
   marketLabel,
@@ -2842,11 +2843,10 @@ function screeningSourceSummaryMarkup(detail) {
 
 function analysisConclusion(analysis) {
   const conclusion = String(analysis?.one_sentence_conclusion || "").trim();
-  if (!conclusion) return "暂无一句话结论。";
-  if (/机械触发|触发有效性|确定性研究触发|INITIAL_TRIGGER|\bV[12]_/.test(conclusion)) {
-    return `当前建议${analysisVerdictLabel(analysis.verdict)}，风险水平${analysisRiskLabel(analysis.risk_overlay)}。`;
-  }
-  return conclusion;
+  const fallback = conclusion
+    ? `当前建议${analysisVerdictLabel(analysis.verdict)}，风险水平${analysisRiskLabel(analysis.risk_overlay)}。`
+    : "暂无一句话结论。";
+  return humanizeAnalysisConclusion(conclusion, fallback);
 }
 
 function v2AssessmentMarkup(detail) {

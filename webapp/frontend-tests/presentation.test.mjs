@@ -11,10 +11,25 @@ import {
   filterSecurities,
   formatMarketValue,
   formatPct,
+  humanizeAnalysisConclusion,
   sortSecurities,
   targetStatus,
   yieldToneClass
 } from "../public/modules/presentation.js";
+
+test("legacy system language is removed without discarding the useful conclusion", () => {
+  assert.equal(
+    humanizeAnalysisConclusion(
+      "机械触发仍成立，但高股息来自较高分配比例而非盈利改善。",
+      "继续观察。"
+    ),
+    "高股息来自较高分配比例而非盈利改善。"
+  );
+  assert.equal(
+    humanizeAnalysisConclusion("INITIAL_TRIGGER_BACKLOG", "继续观察。"),
+    "继续观察。"
+  );
+});
 
 const securities = [
   {
