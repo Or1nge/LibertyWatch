@@ -34,6 +34,7 @@ SLOW_INPUT_KEYS = (
     "balance_sheet_history",
     "has_material_dilution",
 )
+V21_SLOW_CACHE_SCHEMA_VERSION = 2
 
 
 def slow_input_hash(raw: Mapping[str, Any], on_date: date) -> str:
@@ -227,6 +228,7 @@ def _serialize_v21(slow: V21SlowVariables, input_hash: str) -> dict[str, Any]:
         "calculation_version": CALCULATION_VERSION,
         "slow_input_hash": input_hash,
         "v21": True,
+        "v21_slow_cache_schema_version": V21_SLOW_CACHE_SCHEMA_VERSION,
         "distribution_history": jsonable(slow.distribution_history),
         "annual_effective_distributions": jsonable(slow.annual_effective_distributions),
         "r2": jsonable(slow.r2),
@@ -326,6 +328,8 @@ def load_or_compute_slow_v21(
             cached = json.loads(cache_path.read_text(encoding="utf-8"))
             if (
                 cached.get("v21") is True
+                and cached.get("v21_slow_cache_schema_version")
+                == V21_SLOW_CACHE_SCHEMA_VERSION
                 and cached.get("calculation_version") == CALCULATION_VERSION
                 and cached.get("slow_input_hash") == digest
             ):

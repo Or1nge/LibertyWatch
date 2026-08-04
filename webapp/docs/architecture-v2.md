@@ -68,6 +68,11 @@ FastAPI 不抓取、不计算、不调用模型，也不等待分析任务。浏
 旧 `/api/watchlist` 继续返回，旧字段明确显示为 v1；新接口位于 `/api/v1`。
 设置 `SHAREHOLDER_RETURN_V2_ENABLED=false` 可关闭所有 v2 读取而不影响旧页面。
 
+FastAPI在读取structured `current`时还会验证v2.1版本、`VALID_RELEASE`、公司ID、
+层级、BLOCKED空分数、RI/ERI成对发布和0—100有限数。部署即使被显式设为`true`，
+也必须依次通过本地、Ali回环和公网激活canary：67条记录、至少5家真实RI/ERI，
+并且所有可评分公司已进入版本化人工审批清单。任何一步失败都保持或回滚到v2关闭。
+
 ## 发布失败语义
 
 单家公司数据不足会生成合法的`BLOCKED`记录，不中断或否定整批release。身份、

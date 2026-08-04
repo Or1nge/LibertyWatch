@@ -217,6 +217,20 @@ def test_arbitrary_partial_cannot_forge_bootstrap_eligibility() -> None:
     assert not result.should_trigger
 
 
+def test_v21_blocked_tier_cannot_trigger_codex_even_with_forged_eligibility() -> None:
+    current = company_snapshot(
+        status="PARTIAL",
+        analysis_eligibility={
+            "eligible": True,
+            "status": "CORE_VALID_QUALITATIVE_OVERLAY_PENDING",
+            "missing_qualitative_scores": ["business_durability"],
+        },
+    )
+    current["data_tier"] = "BLOCKED"
+    result = evaluate_trigger(current, None, current_prompt_version=PROMPT_VERSION, now=NOW)
+    assert not result.should_trigger
+
+
 def test_unchanged_urgent_veto_does_not_retrigger_after_legal_report() -> None:
     current = company_snapshot(
         vetoes=[{"code": "AUDIT_GOVERNANCE_ALERT", "severity": "MAJOR"}]

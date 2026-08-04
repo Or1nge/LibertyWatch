@@ -10,6 +10,8 @@ from pathlib import Path, PurePosixPath
 from threading import RLock
 from typing import Any, Mapping
 
+from .v2_contract import V2CanarySummary, validate_public_index
+
 
 SAFE_ID = re.compile(r"^[A-Za-z0-9._-]{1,100}$")
 SENSITIVE_ABSOLUTE_PATH = re.compile(r"/(?:home|var|etc|opt|root)/[^\s,;]+")
@@ -97,6 +99,7 @@ class PublishedV2Store:
         self._structured_path: Path | None = None
         self._analysis_path: Path | None = None
         self._companies_index: dict[str, Any] | None = None
+        self._structured_summary: V2CanarySummary | None = None
         self._definitions: dict[str, Any] | None = None
         self._pipeline_status: dict[str, Any] | None = None
         self._analysis_index: dict[str, Any] | None = None
@@ -133,10 +136,15 @@ class PublishedV2Store:
                 pipeline = json.loads((path / "pipeline_status.json").read_text(encoding="utf-8"))
                 if index.get("schema_version") != "shareholder-return-v2":
                     raise PublishedDataError("unsupported structured schema version")
+                try:
+                    summary = validate_public_index(index)
+                except ValueError as error:
+                    raise PublishedDataError(str(error)) from error
                 with self._lock:
                     self._structured_path = path
                     self._structured_signature = structured_signature
                     self._companies_index = index
+                    self._structured_summary = summary
                     self._definitions = definitions
                     self._pipeline_status = pipeline
                 changed = True
@@ -195,6 +203,21 @@ class PublishedV2Store:
             return None
         value = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(value, dict):
+            return None
+        with self._lock:
+            index = deepcopy(self._companies_index or {})
+        try:
+            validate_public_index(
+                {
+                    "schema_version": index.get("schema_version"),
+                    "calculation_version": index.get("calculation_version"),
+                    "metric_definition_version": index.get("metric_definition_version"),
+                    "release_validity": index.get("release_validity"),
+                    "company_count": 1,
+                    "companies": [value],
+                }
+            )
+        except ValueError:
             return None
         value["analysis_status"] = self.combined_analysis_status(
             company_id,
@@ -269,6 +292,21 @@ class PublishedV2Store:
                 "structured_release": self._structured_path.name if self._structured_path else None,
                 "analysis_release": self._analysis_path.name if self._analysis_path else None,
                 "last_error": last_error,
+                "release_validity": (
+                    self._companies_index.get("release_validity")
+                    if self._companies_index
+                    else None
+                ),
+                "company_tier_counts": (
+                    dict(self._structured_summary.tier_counts)
+                    if self._structured_summary
+                    else {}
+                ),
+                "scored_company_count": (
+                    len(self._structured_summary.scored_company_ids)
+                    if self._structured_summary
+                    else 0
+                ),
             }
 
     def enrich_watchlist(self, snapshot: Mapping[str, Any]) -> dict[str, Any]:
@@ -303,6 +341,17 @@ class PublishedV2Store:
             "calculationVersion": index.get("calculation_version"),
             "metricDefinitionVersion": index.get("metric_definition_version"),
             "companyCount": index.get("company_count"),
+            "releaseValidity": index.get("release_validity"),
+            "tierCounts": (
+                dict(self._structured_summary.tier_counts)
+                if self._structured_summary
+                else {}
+            ),
+            "scoredCompanyCount": (
+                len(self._structured_summary.scored_company_ids)
+                if self._structured_summary
+                else 0
+            ),
             "releaseId": self._structured_path.name if self._structured_path else None,
             "analysisReleaseId": self._analysis_path.name if self._analysis_path else None,
         }

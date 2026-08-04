@@ -54,7 +54,9 @@ v2新增的数据流严格保持相同方向：Linux以Decimal计算并生成str
 `current`，不计算、不抓取、不调用模型。
 
 `SHAREHOLDER_RETURN_V2_ENABLED`默认关闭；代码部署不会自动把页面切到v2。只有数据
-release达到约定门槛并由运维显式设置为`true`后，FastAPI才开放v2只读数据。
+release达到约定门槛并由运维显式设置为`true`后，FastAPI才开放v2只读数据。激活
+canary要求67条合法记录、至少5家公司同时有真实RI/ERI，且这些公司全部列入
+`config/shareholder_v2_activation_reviews.json`人工审批清单；当前清单为空即关闭。
 
 当前部署：
 

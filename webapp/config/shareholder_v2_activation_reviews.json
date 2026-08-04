@@ -1,0 +1,8 @@
+{
+  "schema_version": "shareholder-return-v2.1-activation-reviews-v1",
+  "calculation_version": "shareholder-return-v2.1.0",
+  "expected_company_count": 67,
+  "minimum_scored_companies": 5,
+  "approved_company_ids": [],
+  "notes": "Activation remains closed until every scored first-stage company is manually checked and listed here."
+}

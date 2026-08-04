@@ -242,6 +242,34 @@ function dataStatusLabel(status) {
   }[status] ?? "等待披露";
 }
 
+function dataTierLabel(tier) {
+  return {
+    BLOCKED: "阻断",
+    ESTIMATED: "估算",
+    CALCULABLE: "可计算",
+    VERIFIED: "已核验"
+  }[tier] ?? "等待评估";
+}
+
+function freshnessLabel(value) {
+  return {
+    CURRENT: "当前交易时段",
+    MARKET_CLOSED_CURRENT: "休市期当前",
+    STALE_LAST_GOOD: "最后可用行情"
+  }[value] ?? "时效未知";
+}
+
+function metricBasisLabel(value) {
+  return {
+    DIRECT: "直接值",
+    DERIVED: "确定性推导",
+    VENDOR_AUTHORIZED: "已授权供应商值",
+    PROXY: "代理口径",
+    CONSERVATIVE_DEFAULT: "保守默认",
+    UNAVAILABLE: "不可用"
+  }[value] ?? "口径未标记";
+}
+
 function analysisStatusLabel(value) {
   const status = value?.status ?? value?.analysis_status?.status;
   return {
@@ -1279,7 +1307,9 @@ function securityRow(security) {
       <td class="is-numeric"><span data-security-id="${id}" data-field="shareholder-yield">${formatPct(
         security.currentShareholderYieldPct
       )}</span></td>
-      <td class="is-numeric">${v2TableMetric(security, "raw_2y_shareholder_yield")}</td>
+      <td><span class="data-tier is-${escapeHtml(
+        String(security.shareholderReturnV2?.data_tier ?? "missing").toLowerCase()
+      )}">${escapeHtml(dataTierLabel(security.shareholderReturnV2?.data_tier))}</span></td>
       <td class="is-numeric">${v2TableMetric(security, "sustainable_shareholder_yield")}</td>
       <td class="is-numeric">${v2TableMetric(security, "conservative_return_10y")}</td>
       <td class="is-numeric">${escapeHtml(
@@ -1299,11 +1329,7 @@ function securityRow(security) {
       )}">${escapeHtml(
         returnTypeLabel(security.shareholderReturnV2?.return_type)
       )}</span></td>
-      <td><span class="data-status is-${escapeHtml(
-        String(security.shareholderReturnV2?.data_status ?? "missing").toLowerCase()
-      )}">${escapeHtml(
-        dataStatusLabel(security.shareholderReturnV2?.data_status)
-      )}</span></td>
+      <td>${escapeHtml(freshnessLabel(security.shareholderReturnV2?.freshness))}</td>
       <td>${escapeHtml(
         analysisStatusLabel(security.shareholderReturnV2?.analysis)
       )}</td>
@@ -1386,6 +1412,10 @@ function mobileSecurityCard(security) {
       </div>
       <div class="mobile-card-values mobile-card-v2-values">
         <span class="mobile-card-value">
+          <small>v2层级</small>
+          <strong>${escapeHtml(dataTierLabel(security.shareholderReturnV2?.data_tier))}</strong>
+        </span>
+        <span class="mobile-card-value">
           <small>${metricHeader("SSY", "sustainable_shareholder_yield")}</small>
           <strong>${escapeHtml(
             publishedDisplay(v2Metric(security, "sustainable_shareholder_yield"))
@@ -1448,7 +1478,7 @@ function watchlistPanel({
                     ${sortableHeader("理想价v1", "preferred", true, "legacy_preferred_price_v1")}
                     ${sortableHeader("距理想价v1", "distance", true, "legacy_distance_to_preferred_v1")}
                     ${sortableHeader("回报率v1", "yield", true, "legacy_shareholder_yield_v1")}
-                    <th>${metricHeader("原始两年", "raw_2y_shareholder_yield")}</th>
+                    <th>${metricHeader("数据层级", "data_quality_status")}</th>
                     <th>${metricHeader("SSY", "sustainable_shareholder_yield")}</th>
                     <th>${metricHeader("CR10", "conservative_return_10y")}</th>
                     <th>${metricHeader("4%价格线", "security_price_at_4pct")}</th>
@@ -1456,7 +1486,7 @@ function watchlistPanel({
                     <th>${metricHeader("ERI", "entry_risk_index")}</th>
                     <th>${metricHeader("分配趋势", "distribution_trend")}</th>
                     <th>${metricHeader("4%原因", "return_type_reason")}</th>
-                    <th>${metricHeader("数据状态", "data_quality_status")}</th>
+                    <th>行情时效</th>
                     <th>${metricHeader("Codex", "codex_risk_report")}</th>
                     <th>${metricHeader("估值状态v1", "legacy_valuation_status_v1")}</th>
                     <th>${metricHeader("提醒状态v1", "legacy_alert_status_v1")}</th>
@@ -1974,7 +2004,8 @@ function dataStatusPage() {
   const valuationCoverage = Math.min(peCoverage, pbCoverage);
   const v2 = state.v2PipelineStatus || {};
   const v2Meta = state.data.shareholderReturnV2 || {};
-  const statusCounts = v2.company_status_counts || {};
+  const tierCounts = v2.company_tier_counts || v2Meta.tierCounts || {};
+  const scoredCompanyCount = v2.scored_company_count ?? v2Meta.scoredCompanyCount ?? 0;
   const jobs = v2.jobs || {};
   const v2Healthy = v2Meta.available === true && !v2.last_error;
   return `
@@ -2028,7 +2059,9 @@ function dataStatusPage() {
       )}
       ${statusCard(
         "股东回报 v2",
-        v2Meta.available ? `${v2Meta.companyCount ?? 0} 家` : "等待首个发布",
+        v2Meta.available
+          ? `${scoredCompanyCount} / ${v2Meta.companyCount ?? 0} 家可评分`
+          : "等待首个发布",
         v2.last_structured_calculation_at
           ? `计算于 ${formatDateTime(v2.last_structured_calculation_at)}`
           : v2.last_error || "结构化发布尚未就绪",
@@ -2088,9 +2121,15 @@ function dataStatusPage() {
         )}
         ${readinessRow(
           "v2结构化发布",
-          "Linux以Decimal完成慢变量与快变量计算；INVALID公司使用最后合法快照，不影响其他公司。",
+          "Linux以Decimal完成慢变量与快变量计算；BLOCKED发布当前空分数记录，不用历史分数覆盖。",
           v2Healthy,
-          `VALID ${statusCounts.VALID ?? 0} / PARTIAL ${statusCounts.PARTIAL ?? 0} / 阻塞 ${(statusCounts.INVALID ?? 0) + (statusCounts.STALE ?? 0)}`
+          `VERIFIED ${tierCounts.VERIFIED ?? 0} / CALCULABLE ${tierCounts.CALCULABLE ?? 0} / ESTIMATED ${tierCounts.ESTIMATED ?? 0} / BLOCKED ${tierCounts.BLOCKED ?? 0}`
+        )}
+        ${readinessRow(
+          "v2激活门槛",
+          "至少5家公司同时发布真实RI/ERI，且每家都进入版本化人工审批清单后才允许显式开启。",
+          scoredCompanyCount >= 5,
+          `${scoredCompanyCount} / 5`
         )}
         ${readinessRow(
           "本地Codex风险服务",
@@ -2137,6 +2176,7 @@ function readinessRow(title, copy, ready, locationLabel) {
 
 function methodologyPage() {
   const v2Definitions = [
+    "selected_security_equivalent_value",
     "sustainable_shareholder_yield",
     "conservative_return_10y",
     "recommendation_index",
@@ -2167,7 +2207,7 @@ function methodologyPage() {
               </article>`
             )
             .join("")}
-          <p><strong>重要：</strong>缺失、过期、行业不适用或来源冲突不会显示为 0；关键校验失败时保留上一个合法快照并关闭本次推荐。</p>
+          <p><strong>重要：</strong>缺失、过期、行业不适用或来源冲突不会显示为 0；关键校验失败时发布当前 BLOCKED 记录、清空RI/ERI并明确列出阻断项。</p>
         </section>
         <section class="method-section" id="target-distance">
           <h2>2. 旧版自动目标价与估值（v1迁移期）</h2>
@@ -2495,7 +2535,12 @@ function detailRecord(detail, id, { score = false } = {}) {
 function v2DetailMetricCard(detail, id, { score = false, fallback = "数据不足" } = {}) {
   const definition = metricDefinition(id);
   const record = detailRecord(detail, id, { score });
-  const status = record?.reason || record?.status || detail?.data_status || fallback;
+  const status = record?.warning || record?.reason || record?.status || detail?.data_tier || fallback;
+  const explanation = [
+    metricBasisLabel(record?.basis),
+    record?.warning,
+    record?.reason
+  ].filter(Boolean).join(" · ");
   return `
     <article class="v2-detail-card">
       <div class="v2-detail-card-head">
@@ -2503,7 +2548,7 @@ function v2DetailMetricCard(detail, id, { score = false, fallback = "数据不�
         ${metricInfoButton(id, status)}
       </div>
       <strong>${escapeHtml(publishedDisplay(record, fallback))}</strong>
-      <span>${escapeHtml(record?.reason || dataStatusLabel(detail?.data_status))}</span>
+      <span>${escapeHtml(explanation || dataTierLabel(detail?.data_tier))}</span>
     </article>
   `;
 }
@@ -2561,6 +2606,27 @@ function sourceSummaryMarkup(detail) {
     .join("")}</ul>`;
 }
 
+function v2AssessmentMarkup(detail) {
+  const blockers = Array.isArray(detail?.blockers) ? detail.blockers : [];
+  const warnings = Array.isArray(detail?.warnings) ? detail.warnings : [];
+  const confidence = detail?.data_confidence?.value;
+  const list = (items, empty) => items.length
+    ? `<ul class="v2-issue-list">${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`
+    : `<p class="v2-empty">${escapeHtml(empty)}</p>`;
+  return `
+    <div class="v2-assessment-summary">
+      <span><small>公司层级</small><strong>${escapeHtml(dataTierLabel(detail?.data_tier))}</strong></span>
+      <span><small>数据置信度</small><strong>${escapeHtml(
+        confidence === null || confidence === undefined ? "—" : `${confidence} / 100`
+      )}</strong></span>
+      <span><small>行情时效</small><strong>${escapeHtml(freshnessLabel(detail?.freshness))}</strong></span>
+    </div>
+    <div class="v2-issue-columns">
+      <div><h5>阻断项</h5>${list(blockers, "无公司级硬阻断。")}</div>
+      <div><h5>估算与警告</h5>${list(warnings, "无额外口径警告。")}</div>
+    </div>`;
+}
+
 function codexReportMarkup(security, detail) {
   const companyId = security.issuerId;
   const loading = state.v2Loading.has(companyId);
@@ -2597,7 +2663,7 @@ function shareholderReturnV2Section(security) {
   }
   const companyId = security.issuerId;
   const detail = state.v2CompanyCache.get(companyId) || summary;
-  const statusText = dataStatusLabel(detail.data_status);
+  const statusText = dataTierLabel(detail.data_tier);
   const vetoes = Array.isArray(detail.veto_flags) ? detail.veto_flags : [];
   const coverage = detail.coverage_adapter || {};
   const validationMessages = [
@@ -2618,19 +2684,23 @@ function shareholderReturnV2Section(security) {
     <section class="drawer-section shareholder-v2">
       <div class="v2-source-boundary">
         <span>自动计算</span>
-        <strong class="data-status is-${escapeHtml(String(detail.data_status || "missing").toLowerCase())}">${escapeHtml(
+        <strong class="data-tier is-${escapeHtml(String(detail.data_tier || "missing").toLowerCase())}">${escapeHtml(
           statusText
         )}</strong>
+        <em class="v2-freshness">${escapeHtml(freshnessLabel(detail.freshness))}</em>
         <small>${escapeHtml(detail.calculation_version || "shareholder-return-v2")}</small>
       </div>
       <div class="v2-disclaimer">
         该系统用于筛选和风险研究，不构成收益保证。CR10 是保守情景估算基准，不是锁定收益。Codex 报告是定性风险研究，不替代结构化财务数据。
       </div>
+      <section class="v2-detail-group">
+        <h4>统一数据评估</h4>
+        ${v2AssessmentMarkup(detail)}
+      </section>
       ${v2DetailSection("当前估值与4%位置", [
-        v2DetailMetricCard(detail, "company_market_cap"),
-        v2DetailMetricCard(detail, "raw_2y_shareholder_yield"),
+        v2DetailMetricCard(detail, "selected_security_equivalent_value"),
         v2DetailMetricCard(detail, "sustainable_shareholder_yield"),
-        v2DetailMetricCard(detail, "company_value_at_4pct"),
+        v2DetailMetricCard(detail, "conservative_return_10y"),
         securityPriceCard,
       ])}
       <section class="v2-detail-group">
@@ -2647,20 +2717,18 @@ function shareholderReturnV2Section(security) {
         "现金流或资本覆盖",
         [
           v2DetailMetricCard(detail, "sustainable_distribution"),
+          v2DetailMetricCard(detail, "fcf_capacity"),
           v2DetailMetricCard(detail, "coverage_ratio"),
-          v2DetailMetricCard(detail, "net_debt_ebitda"),
+          v2DetailMetricCard(detail, "balance_sheet_risk_indicator"),
         ],
         `行业适配器：${coverage.name || "等待识别"}；状态：${coverage.status || "数据不足"}${
           coverage.caveats?.length ? `；${coverage.caveats.join("；")}` : ""
         }`
       )}
-      ${v2DetailSection("回购与股本变化", [
-        v2DetailMetricCard(detail, "buyback_persistence_factor"),
-        v2DetailMetricCard(detail, "eligible_buyback"),
-      ])}
       ${v2DetailSection("十年保守回报", [
+        v2DetailMetricCard(detail, "organic_growth"),
         v2DetailMetricCard(detail, "conservative_growth"),
-        v2DetailMetricCard(detail, "valuation_drag"),
+        v2DetailMetricCard(detail, "valuation_adjustment"),
         v2DetailMetricCard(detail, "conservative_return_10y"),
       ])}
       ${v2DetailSection("自动推荐指数", [
@@ -2669,17 +2737,18 @@ function shareholderReturnV2Section(security) {
         v2DetailMetricCard(detail, "business_durability", { score: true }),
         v2DetailMetricCard(detail, "governance_capital_allocation", { score: true }),
         v2DetailMetricCard(detail, "recommendation_index", { score: true }),
-      ], `分类 ${detail.classification || "C"} · ${returnTypeLabel(detail.return_type)}`)}
+      ], `分类 ${detail.classification || "—"} · ${returnTypeLabel(detail.return_type)}`)}
       ${v2DetailSection("入手风险指数", [
         v2DetailMetricCard(detail, "entry_risk_index", { score: true }),
       ], vetoes.length ? `未解决否决项：${vetoes.map((flag) => flag.message_zh || flag.code).join("；")}` : "未触发结构化否决项。")}
       <section class="v2-detail-group">
         <h4>数据质量和来源</h4>
         <p>${escapeHtml(validationMessages.join("；") || "结构化校验未报告错误。")}</p>
+        <p>指标口径、代理值和默认值均随记录公开；未知值保持为空，不以0冒充。</p>
         ${sourceSummaryMarkup(detail)}
       </section>
       <section class="v2-detail-group codex-analysis-section">
-        <div class="v2-source-boundary"><span>Codex 定性分析</span><small>不参与自动评分</small></div>
+        <div class="v2-source-boundary"><span>Codex 定性分析</span><small>系统门槛≥5家后才创建任务；不参与自动评分</small></div>
         ${codexReportMarkup(security, detail)}
       </section>
     </section>

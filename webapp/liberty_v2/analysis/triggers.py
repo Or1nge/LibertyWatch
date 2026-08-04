@@ -45,11 +45,22 @@ class TriggerDecision:
 
 
 def is_analysis_eligible(snapshot: Mapping[str, Any]) -> bool:
-    """Allow only fully VALID inputs or the narrow qualitative-score bootstrap."""
+    """Allow only a published numeric core; BLOCKED never reaches Codex."""
+
+    tier = snapshot.get("data_tier")
+    if tier == "BLOCKED":
+        return False
+    eligibility = snapshot.get("analysis_eligibility")
+    if tier in {"ESTIMATED", "CALCULABLE", "VERIFIED"}:
+        return bool(
+            isinstance(eligibility, Mapping)
+            and eligibility.get("eligible") is True
+            and eligibility.get("status")
+            in {"FULLY_VALID", "CORE_VALID_QUALITATIVE_OVERLAY_PENDING"}
+        )
 
     if snapshot.get("data_status") == "VALID":
         return True
-    eligibility = snapshot.get("analysis_eligibility")
     if snapshot.get("data_status") != "PARTIAL" or not isinstance(eligibility, Mapping):
         return False
     missing = eligibility.get("missing_qualitative_scores")

@@ -52,6 +52,7 @@ SHAREHOLDER_V2_QUOTE_SNAPSHOT=/var/lib/liberty/shareholder-v2/inputs/latest_snap
 | 变量 | 用途 |
 |---|---|
 | `SHAREHOLDER_RETURN_V2_ENABLED` | FastAPI v2功能开关；默认`false`，只有明确切换时设为`true` |
+| `SHAREHOLDER_V2_CANARY_INDEX` | 显式开启v2时接受激活检查的本地`companies.json`；默认指向本地structured current |
 | `SHAREHOLDER_V2_LOCAL_ROOT` / `STAGING_DIR` | Linux数据与标准化输入 |
 | `SHAREHOLDER_V2_QUOTE_SNAPSHOT` | 行情快变量交接文件 |
 | `ANALYSIS_JOB_DB` | SQLite任务库 |
@@ -152,6 +153,13 @@ set +a
 部署脚本先跑全量测试，远端Compose健康和公网API检查均通过后才切换代码
 `current`；失败自动恢复上一代码release。
 
+当且仅当显式设置`SHAREHOLDER_RETURN_V2_ENABLED=true`时，部署还会在任何远端写入
+前运行激活canary，并在Ali回环与公网API重复验证：release必须为v2.1
+`VALID_RELEASE`，恰有67条合法记录，至少5家公司同时发布RI/ERI，所有分数为
+0—100有限数，且全部可评分公司已列入
+`config/shareholder_v2_activation_reviews.json`。当前审批清单为空，因此误设
+`true`会在本地直接失败；`false`的常规v1代码dry-run不受影响。
+
 ## 回滚
 
 来源账本staging的受控导入与发布release是两个独立回滚面。先停止后续结构化计算，
@@ -211,8 +219,8 @@ Web代码release由 `scripts/deploy_ali.sh` 在验证失败时自动恢复；手
 - `WAITING_MODEL`：检查 `codex debug models` 是否含 `gpt-5.6-sol`，不改用其他
   模型。
 - `WAITING_AUTH`：以unit实际使用的服务用户重新登录；不要复制个人token到Git。
-- `INVALID/STALE`：查看公司 `validation_errors`；补来源/AH股本/汇率/对账后生成
-  新快照，旧合法快照仍展示。
+- `BLOCKED`：查看公司 `blockers`、`warnings`和`selected_input_plan`；补齐选中来源、
+  SEEV授权、近期分红、覆盖或资产负债表后重算。当前BLOCKED记录不展示旧分数。
 - `WAITING_RETRY`：检查网络、额度或SSH；publisher会指数退避/定时重试。
 - Ali 仍显示旧版：比较两个channel的 manifest release ID 和 SHA-256，不直接
   覆盖 current 内JSON。

@@ -9,6 +9,7 @@ REMOTE_BASE="${LIBERTY_REMOTE_BASE:-}"
 PUBLIC_PORT="${LIBERTY_PUBLIC_PORT:-}"
 PUBLIC_HOST="${LIBERTY_PUBLIC_HOST:-}"
 V2_ENABLED="${SHAREHOLDER_RETURN_V2_ENABLED:-false}"
+V2_CANARY_INDEX="${SHAREHOLDER_V2_CANARY_INDEX:-${WEBAPP_DIR}/../data/shareholder-v2/published/structured/current/companies.json}"
 DRY_RUN=0
 SKIP_TESTS=0
 
@@ -93,6 +94,16 @@ if ((SKIP_TESTS == 0)); then
   fi
 fi
 
+if [[ "${V2_ENABLED}" == "true" ]]; then
+  if [[ ! -f "${V2_CANARY_INDEX}" ]]; then
+    echo "v2 activation canary index is missing: ${V2_CANARY_INDEX}" >&2
+    exit 1
+  fi
+  "${PYTHON_BIN}" "${WEBAPP_DIR}/scripts/support/validate_v2_canary.py" \
+    --companies "${V2_CANARY_INDEX}" \
+    --reviews "${WEBAPP_DIR}/config/shareholder_v2_activation_reviews.json"
+fi
+
 TEMP_DIR="$(mktemp -d -t liberty-watch-deploy.XXXXXX)"
 cleanup() {
   rm -rf -- "${TEMP_DIR}"
@@ -104,11 +115,13 @@ CHECKSUM="${ARCHIVE}.sha256"
 
 INCLUDE_PATHS=(
   app
+  liberty_v2
   collector
   config/watchlist.json
   config/demo-watchlist.json
   config/metric_definitions_v2.json
   config/metric_policy_v2.json
+  config/shareholder_v2_activation_reviews.json
   vendor/wheels
   public
   Dockerfile
@@ -213,16 +226,17 @@ LIBERTY_SHARED_DIR="${REMOTE_BASE}/shared" \
   SHAREHOLDER_RETURN_V2_ENABLED="${SHAREHOLDER_RETURN_V2_ENABLED}" \
   docker compose -p liberty-watch up -d --build --wait --wait-timeout 120
 
-python3 - "${PUBLIC_PORT}" "${SHAREHOLDER_RETURN_V2_ENABLED}" <<'PY'
+python3 - "${PUBLIC_PORT}" "${SHAREHOLDER_RETURN_V2_ENABLED}" "${REMOTE_RELEASE}" <<'PY'
 import json
 import sys
 import urllib.request
 
 port = int(sys.argv[1])
 v2_enabled = sys.argv[2] == "true"
+release = sys.argv[3]
 paths = ["/healthz", "/readyz", "/api/watchlist"]
 if v2_enabled:
-    paths.append("/api/v1/metric-definitions")
+    paths.extend(("/api/v1/metric-definitions", "/api/v1/companies"))
 for path in paths:
     with urllib.request.urlopen(f"http://127.0.0.1:{port}{path}", timeout=10) as response:
         if response.status != 200:
@@ -231,6 +245,21 @@ for path in paths:
             payload = json.load(response)
             if "meta" not in payload or "securities" not in payload:
                 raise SystemExit("watchlist payload is incomplete")
+        elif path == "/api/v1/companies":
+            payload = json.load(response)
+            sys.path.insert(0, release)
+            from app.v2_contract import validate_activation_canary
+            with open(
+                f"{release}/config/shareholder_v2_activation_reviews.json",
+                encoding="utf-8",
+            ) as handle:
+                reviews = json.load(handle)
+            validate_activation_canary(
+                payload,
+                approved_company_ids=reviews.get("approved_company_ids", []),
+                expected_company_count=int(reviews.get("expected_company_count", 67)),
+                minimum_scored_companies=int(reviews.get("minimum_scored_companies", 5)),
+            )
 PY
 
 trap - EXIT
@@ -247,6 +276,10 @@ public_check() {
     curl -fsS --max-time 15 "http://${PUBLIC_HOST}:${PUBLIC_PORT}/api/v1/metric-definitions" |
       "${PYTHON_BIN}" -c \
         'import json,sys; p=json.load(sys.stdin); assert p["definition_version"].startswith("shareholder-return-v2")'
+    curl -fsS --max-time 15 "http://${PUBLIC_HOST}:${PUBLIC_PORT}/api/v1/companies" |
+      "${PYTHON_BIN}" -c \
+        'import json,sys; sys.path.insert(0,sys.argv[1]); from app.v2_contract import validate_activation_canary; r=json.load(open(sys.argv[2],encoding="utf-8")); validate_activation_canary(json.load(sys.stdin), approved_company_ids=r.get("approved_company_ids",[]), expected_company_count=int(r.get("expected_company_count",67)), minimum_scored_companies=int(r.get("minimum_scored_companies",5)))' \
+        "${WEBAPP_DIR}" "${WEBAPP_DIR}/config/shareholder_v2_activation_reviews.json"
   fi
   curl -fsS --max-time 15 \
     "http://${PUBLIC_HOST}:${PUBLIC_PORT}/" \

@@ -67,10 +67,12 @@ def company() -> dict:
         "price_timestamp": None,
         "data_status": "PARTIAL",
         "data_tier": "BLOCKED",
-        "data_confidence": {"total": 20, "domains": {}, "caveats": []},
+        "data_confidence": {"value": 20, "domains": {}, "caveats": []},
         "freshness": "MARKET_CLOSED_CURRENT",
         "warnings": [],
         "blockers": ["TEST_DATA_GAP"],
+        "metric_bases": {},
+        "selected_input_plan": {},
         "update_status": "CURRENT",
         "metrics": {"sustainable_shareholder_yield": empty_metric},
         "scores": {},
@@ -141,6 +143,7 @@ def test_v2_read_only_api_contract_and_v1_enrichment(tmp_path: Path) -> None:
         companies = client.get("/api/v1/companies")
         assert companies.status_code == 200
         assert companies.json()["schema_version"] == "shareholder-return-v2"
+        assert companies.json()["release_validity"] == "VALID_RELEASE"
         detail = client.get("/api/v1/companies/issuer-v2")
         assert detail.status_code == 200
         assert detail.json()["data_status"] == "PARTIAL"
@@ -156,6 +159,9 @@ def test_v2_read_only_api_contract_and_v1_enrichment(tmp_path: Path) -> None:
         watchlist = client.get("/api/watchlist")
         assert watchlist.status_code == 200
         assert watchlist.json()["shareholderReturnV2"]["available"] is True
+        assert watchlist.json()["shareholderReturnV2"]["releaseValidity"] == "VALID_RELEASE"
+        assert watchlist.json()["shareholderReturnV2"]["tierCounts"] == {"BLOCKED": 1}
+        assert watchlist.json()["shareholderReturnV2"]["scoredCompanyCount"] == 0
         security = watchlist.json()["securities"][0]
         assert security["shareholderReturnV2"]["company_id"] == "issuer-v2"
         assert security["shareholderReturnV2"]["analysis"]["status"] == "WAITING_RETRY"
