@@ -1,5 +1,10 @@
 # 本地 Codex 风险分析服务
 
+> 当前公开研究契约已升级为`risk-review-v2.0.2`和
+> `analysis/schema/risk_analysis_output_v2.json`，使用逐公司screening触发与
+> `research_bundle.json`，不再回写reviewed overlay。下文v1.1触发与overlay内容
+> 仅作为legacy回放说明；当前运行方式见[`shareholder-screen-v2.2.md`](shareholder-screen-v2.2.md)。
+
 ## 固定运行策略
 
 唯一允许的运行配置为：
@@ -14,20 +19,26 @@ approval = never
 `liberty_v2/analysis/worker.py` 使用 `subprocess.Popen` 参数数组，Prompt 经 stdin
 传入，禁用 shell，超时终止整个进程组。worker默认复用安装时选定的现有服务
 用户，不要求另建 `liberty-codex`；另建账户仅是可选加固。无论使用哪个用户，
-systemd都把项目代码设为只读，只开放分析、状态和选定CODEX_HOME，并隐藏变化中
-的inputs/staging/cache/snapshots/published目录。CLI仍使用ephemeral、read-only
-sandbox、PrivateTmp和输出白名单。
+systemd都把项目代码设为只读，只开放分析任务/输出、analysis发布、状态和选定
+CODEX_HOME，并隐藏变化中的inputs/staging/cache/snapshots、structured发布与
+observations目录。CLI仍使用ephemeral、read-only sandbox、PrivateTmp和输出白名单。
 CLI子进程只继承认证、代理、CA、locale和临时目录白名单，不继承发布/数据库变量。
+成功归档按字节复制已校验的冻结输入，不继承源目录的setgid等权限元数据，以兼容
+systemd的`RestrictSUIDSGID`加固；归档内容仍由冻结输入SHA和最终产物SHA校验。
 当前 CLI 对应命令顺序为：
 
 ```bash
 codex --ask-for-approval never --search exec \
-  --ephemeral --cd /opt/liberty/shareholder-v2/current \
+  --skip-git-repo-check --ephemeral \
+  --cd /opt/liberty/shareholder-v2/current \
   --model gpt-5.6-sol -c 'model_reasoning_effort="xhigh"' \
   --sandbox read-only --json \
-  --output-schema analysis/schema/risk_analysis_output_v1.json \
+  --output-schema analysis/schema/risk_analysis_output_v2.json \
   --output-last-message /tmp/final.output.json -
 ```
+
+安装后的`current`是不可变release且不包含`.git`，因此显式跳过CLI的Git仓库检查；
+这不跳过冻结输入的精确文件集/SHA校验、Schema校验、公开来源门禁或read-only sandbox。
 
 启动检查覆盖 `codex --version`、`codex debug models`、`codex login status`、输出
 权限、Prompt版本和Schema模型常量。模型或认证不可用时任务分别进入

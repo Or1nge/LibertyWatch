@@ -9,11 +9,10 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 from ..constants import MODEL, OUTPUT_SCHEMA_VERSION, REASONING_EFFORT
 from .job_store import AnalysisJob
-from .reviewed_overlay import ReviewedOverlayError, validate_reviewed_candidates
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_SCHEMA = PROJECT_ROOT / "analysis" / "schema" / "risk_analysis_output_v1.json"
+DEFAULT_SCHEMA = PROJECT_ROOT / "analysis" / "schema" / "risk_analysis_output_v2.json"
 
 
 class OutputValidationError(ValueError):
@@ -54,7 +53,7 @@ class AnalysisOutputValidator:
             messages = [f"{'/'.join(map(str, error.absolute_path)) or '$'}: {error.message}" for error in errors[:20]]
             raise OutputValidationError("schema validation failed: " + " | ".join(messages))
         expected = {
-            "schema_version": OUTPUT_SCHEMA_VERSION,
+            "schema_version": self.schema.get("properties", {}).get("schema_version", {}).get("const", OUTPUT_SCHEMA_VERSION),
             "prompt_version": job.prompt_version,
             "model": MODEL,
             "reasoning_effort": REASONING_EFFORT,
@@ -98,14 +97,17 @@ class AnalysisOutputValidator:
             parsed = urlparse(source["url"])
             if parsed.scheme not in {"http", "https"} or not parsed.netloc:
                 raise OutputValidationError("source URLs must use http or https")
-        if payload["analysis_mode"] == "URGENT_VETO_REVIEW" and payload["verdict"] == "SCALE_IN":
-            raise OutputValidationError("urgent veto reviews may not return SCALE_IN")
+            hostname = (parsed.hostname or "").lower()
+            if (
+                hostname in {"localhost", "example.com", "www.example.com"}
+                or hostname.endswith(".local")
+                or hostname.endswith(".invalid")
+            ):
+                raise OutputValidationError("source URLs must be public evidence, not local or placeholder URLs")
+        if payload["analysis_mode"] in {"URGENT_VETO_REVIEW", "URGENT_RISK_REVIEW"} and payload["verdict"] == "SCALE_IN":
+            raise OutputValidationError("urgent reviews may not return SCALE_IN")
         if bool(payload["data_issue_detected"]) != bool(payload["data_issue_notes"]):
             raise OutputValidationError("data_issue_detected must agree with data_issue_notes")
-        try:
-            validate_reviewed_candidates(payload)
-        except ReviewedOverlayError as error:
-            raise OutputValidationError(f"reviewed overlay candidate rejected: {error}") from error
         return dict(payload)
 
     def validate_file(

@@ -41,6 +41,7 @@ class AnalysisDispatcher:
         events: Sequence[str] = (),
         prompt_major_upgrade: bool = False,
         prior_baseline_invalid: bool = False,
+        initial_backlog: bool = False,
         now: datetime | None = None,
     ) -> dict[str, Any]:
         company_id = str(company.get("company_id") or "")
@@ -75,6 +76,7 @@ class AnalysisDispatcher:
             prior_baseline_invalid=prior_baseline_invalid,
             trade_date=current_time.date(),
             now=current_time,
+            initial_backlog=initial_backlog,
         )
         self.store.save_observation_state(company_id, decision.state)
         atomic_write_json(self.observation_root / f"{company_id}.json", dict(company))
@@ -115,17 +117,43 @@ class AnalysisDispatcher:
             "reason": decision.summary,
         }
 
-    def dispatch_release(self, release_path: Path, *, events_by_company: Mapping[str, Sequence[str]] | None = None) -> list[dict[str, Any]]:
+    def dispatch_release(
+        self,
+        release_path: Path,
+        *,
+        events_by_company: Mapping[str, Sequence[str]] | None = None,
+        initial_backlog: bool = False,
+    ) -> list[dict[str, Any]]:
         index = json.loads((release_path / "companies.json").read_text(encoding="utf-8"))
-        results: list[dict[str, Any]] = []
+        records: list[dict[str, Any]] = []
         for summary in index.get("companies", []):
             company_id = str(summary.get("company_id") or "")
             company_path = release_path / "companies" / f"{company_id}.json"
-            company = json.loads(company_path.read_text(encoding="utf-8"))
+            records.append(json.loads(company_path.read_text(encoding="utf-8")))
+
+        def number(record: Mapping[str, Any], key: str) -> float:
+            try:
+                return float(record.get(key, {}).get("value"))
+            except (AttributeError, TypeError, ValueError):
+                return float("-inf")
+
+        def priority(record: Mapping[str, Any]) -> tuple[Any, ...]:
+            company_id = str(record.get("company_id") or "")
+            trigger = record.get("research_trigger") if isinstance(record.get("research_trigger"), Mapping) else {}
+            events = set(map(str, (events_by_company or {}).get(company_id, ())))
+            trigger_type = str(trigger.get("trigger_type") or "")
+            urgent = bool(events or trigger.get("event_codes"))
+            order = 0 if urgent else 1 if trigger_type == "DIVIDEND_YIELD_TTM" else 2
+            return (order, -number(record, "opportunity_score"), -number(record, "financial_resilience_score"), company_id)
+
+        results: list[dict[str, Any]] = []
+        for company in sorted(records, key=priority):
+            company_id = str(company.get("company_id") or "")
             results.append(
                 self.dispatch_company(
                     company,
                     events=(events_by_company or {}).get(company_id, ()),
+                    initial_backlog=initial_backlog,
                 )
             )
         return results

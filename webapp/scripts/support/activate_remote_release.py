@@ -1,14 +1,28 @@
 #!/usr/bin/env python3
 """Verify and atomically activate one uploaded public release on Ali."""
 
-from __future__ import annotations
-
 import argparse
 import hashlib
 import json
 import os
 import shutil
 from pathlib import Path, PurePosixPath
+
+
+def unlink_if_exists(path: Path) -> None:
+    try:
+        path.unlink()
+    except FileNotFoundError:
+        pass
+
+
+def normalize_public_permissions(root: Path) -> None:
+    root.chmod(0o755)
+    for path in root.rglob("*"):
+        if path.is_dir():
+            path.chmod(0o755)
+        elif path.is_file():
+            path.chmod(0o644)
 
 
 def digest(path: Path) -> str:
@@ -69,15 +83,16 @@ def main() -> int:
     }
     if actual != expected:
         raise SystemExit("release file set mismatch")
-    (incoming / ".activate.py").unlink(missing_ok=True)
+    unlink_if_exists(incoming / ".activate.py")
+    normalize_public_permissions(incoming)
     releases = root / "releases"
     final = releases / args.release_id
     if final.exists():
         raise SystemExit("release already exists")
     os.replace(incoming, final)
     temporary = root / f".current.{args.release_id}.tmp"
-    temporary.unlink(missing_ok=True)
-    temporary.symlink_to(final)
+    unlink_if_exists(temporary)
+    temporary.symlink_to(Path("releases") / args.release_id)
     os.replace(temporary, root / "current")
     current = final.resolve()
     candidates = sorted(

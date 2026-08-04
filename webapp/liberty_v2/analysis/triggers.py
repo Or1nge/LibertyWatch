@@ -7,9 +7,21 @@ import re
 from typing import Any, Mapping, Sequence
 
 from ..calculations import to_decimal
-from ..policy import decimal_value, integer_value
+from ..policy import decimal_value, integer_value, policy
 
 
+MATERIAL_EVENT_CODES = frozenset(
+    map(str, policy()["screening"]["triggers"]["material_event_codes"])
+)
+PURE_PRICE_TRIGGER_TYPES = {
+    "OPPORTUNITY_SCORE_HIGH",
+    "COMBINED_SCREEN",
+    "DIVIDEND_YIELD_TTM",
+    "INITIAL_TRIGGER_BACKLOG",
+}
+
+# Legacy-only event sets are retained below the public v2.2 boundary so old
+# snapshots remain replayable without affecting screening eligibility.
 URGENT_CODES = {
     "ORDINARY_DIVIDEND_DROPPED_OR_SUSPENDED",
     "AUDIT_GOVERNANCE_ALERT",
@@ -44,7 +56,102 @@ class TriggerDecision:
     state: dict[str, Any]
 
 
-def is_analysis_eligible(snapshot: Mapping[str, Any]) -> bool:
+def _parse_datetime(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def _is_screening_analysis_eligible(snapshot: Mapping[str, Any]) -> bool:
+    if snapshot.get("schema_version") != "shareholder-screen-v2":
+        return False
+    if snapshot.get("status") == "UNAVAILABLE":
+        return False
+    if not str(snapshot.get("company_id") or "") or not str(snapshot.get("company_name") or ""):
+        return False
+    if not isinstance(snapshot.get("source_summary"), Mapping):
+        return False
+    trigger = snapshot.get("research_trigger")
+    return isinstance(trigger, Mapping) and bool(
+        trigger.get("eligible") is True or trigger.get("event_codes")
+    )
+
+
+def _evaluate_screening_trigger(
+    current: Mapping[str, Any],
+    previous: Mapping[str, Any] | None,
+    *,
+    state: Mapping[str, Any] | None = None,
+    events: Sequence[str] = (),
+    has_legal_report: bool = False,
+    last_success_at: datetime | None = None,
+    last_prompt_version: str | None = None,
+    current_prompt_version: str,
+    prompt_major_upgrade: bool = False,
+    prior_baseline_invalid: bool = False,
+    trade_date: date | None = None,
+    now: datetime | None = None,
+    initial_backlog: bool = False,
+) -> TriggerDecision:
+    del previous, last_prompt_version, prompt_major_upgrade, prior_baseline_invalid, trade_date
+    current_time = now or datetime.now(timezone.utc)
+    state_value = dict(state or {})
+    state_value.setdefault("in_observation_zone", False)
+    state_value.setdefault("last_price_trigger_at", None)
+    state_value.setdefault("initial_backlog_completed", False)
+
+    trigger = current.get("research_trigger") if isinstance(current.get("research_trigger"), Mapping) else {}
+    event_codes = sorted((set(map(str, events)) | set(map(str, trigger.get("event_codes") or []))) & MATERIAL_EVENT_CODES)
+    if event_codes:
+        state_value["in_observation_zone"] = True
+        return TriggerDecision(
+            True,
+            "URGENT_RISK_REVIEW",
+            event_codes[0],
+            "重大风险或数据事件：" + "、".join(event_codes),
+            state_value,
+        )
+    if not _is_screening_analysis_eligible(current):
+        return TriggerDecision(False, None, None, "未达到筛选触发条件或不可构建合法研究输入。", state_value)
+
+    state_value["in_observation_zone"] = bool(trigger.get("in_observation_zone"))
+    if not state_value["in_observation_zone"]:
+        return TriggerDecision(False, None, None, "当前不在研究观察区。", state_value)
+
+    selected_type = str(trigger.get("trigger_type") or "OPPORTUNITY_SCORE_HIGH")
+    if (initial_backlog or not has_legal_report) and not state_value.get("initial_backlog_completed"):
+        selected_type = "INITIAL_TRIGGER_BACKLOG"
+        summary = "首次启用时补建当前已满足条件公司的研究队列。"
+    else:
+        summary = str(trigger.get("reason") or "当前筛选条件达到研究阈值。")
+
+    if selected_type in PURE_PRICE_TRIGGER_TYPES:
+        last_price = _parse_datetime(state_value.get("last_price_trigger_at"))
+        price_days = integer_value("thresholds", "price_trigger_cooldown_days")
+        if last_price and current_time - last_price < timedelta(days=price_days):
+            return TriggerDecision(False, None, None, f"纯价格触发仍在{price_days}日冷却期内。", state_value)
+    else:
+        normal_days = integer_value("thresholds", "company_analysis_cooldown_days")
+        if last_success_at and current_time - last_success_at < timedelta(days=normal_days):
+            return TriggerDecision(False, None, None, f"普通分析仍在{normal_days}日成功冷却期内。", state_value)
+
+    state_value["last_price_trigger_at"] = current_time.isoformat()
+    if selected_type == "INITIAL_TRIGGER_BACKLOG":
+        state_value["initial_backlog_completed"] = True
+    return TriggerDecision(
+        True,
+        "PRICE_RISK_ANALYSIS",
+        selected_type,
+        summary,
+        state_value,
+    )
+
+# Legacy v2.1 trigger implementation retained for replay and historical tests only.
+def _is_legacy_analysis_eligible(snapshot: Mapping[str, Any]) -> bool:
     """Allow only a published numeric core; BLOCKED never reaches Codex."""
 
     tier = snapshot.get("data_tier")
@@ -123,7 +230,7 @@ def _major_prompt_changed(previous: str | None, current: str) -> bool:
     return bool(old and new and old.group(1) != new.group(1))
 
 
-def evaluate_trigger(
+def _evaluate_legacy_trigger(
     current: Mapping[str, Any],
     previous: Mapping[str, Any] | None,
     *,
@@ -143,7 +250,7 @@ def evaluate_trigger(
     state_value.setdefault("below_exit_days", 0)
     state_value.setdefault("last_below_trade_date", None)
     state_value.setdefault("last_price_trigger_at", None)
-    if not is_analysis_eligible(current):
+    if not _is_legacy_analysis_eligible(current):
         return TriggerDecision(False, None, None, "核心结构化输入不具备分析资格，不创建Codex任务。", state_value)
 
     current_time = now or datetime.now(timezone.utc)
@@ -338,3 +445,57 @@ def evaluate_trigger(
     else:
         summary = "仅结构化数据更新，无需调用Codex。"
     return TriggerDecision(False, None, None, summary, state_value)
+
+def is_analysis_eligible(snapshot: Mapping[str, Any]) -> bool:
+    """Route eligibility by explicit schema; legacy never enters the v2.2 release."""
+    if snapshot.get("schema_version") == "shareholder-screen-v2":
+        return _is_screening_analysis_eligible(snapshot)
+    return _is_legacy_analysis_eligible(snapshot)
+
+
+def evaluate_trigger(
+    current: Mapping[str, Any],
+    previous: Mapping[str, Any] | None,
+    *,
+    state: Mapping[str, Any] | None = None,
+    events: Sequence[str] = (),
+    has_legal_report: bool = False,
+    last_success_at: datetime | None = None,
+    last_prompt_version: str | None = None,
+    current_prompt_version: str,
+    prompt_major_upgrade: bool = False,
+    prior_baseline_invalid: bool = False,
+    trade_date: date | None = None,
+    now: datetime | None = None,
+    initial_backlog: bool = False,
+) -> TriggerDecision:
+    if current.get("schema_version") == "shareholder-screen-v2":
+        return _evaluate_screening_trigger(
+            current,
+            previous,
+            state=state,
+            events=events,
+            has_legal_report=has_legal_report,
+            last_success_at=last_success_at,
+            last_prompt_version=last_prompt_version,
+            current_prompt_version=current_prompt_version,
+            prompt_major_upgrade=prompt_major_upgrade,
+            prior_baseline_invalid=prior_baseline_invalid,
+            trade_date=trade_date,
+            now=now,
+            initial_backlog=initial_backlog,
+        )
+    return _evaluate_legacy_trigger(
+        current,
+        previous,
+        state=state,
+        events=events,
+        has_legal_report=has_legal_report,
+        last_success_at=last_success_at,
+        last_prompt_version=last_prompt_version,
+        current_prompt_version=current_prompt_version,
+        prompt_major_upgrade=prompt_major_upgrade,
+        prior_baseline_invalid=prior_baseline_invalid,
+        trade_date=trade_date,
+        now=now,
+    )

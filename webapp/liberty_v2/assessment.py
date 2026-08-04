@@ -16,7 +16,7 @@ from .market_value_resolver import (
     MarketValueResolution,
     resolve_selected_security_equivalent_value,
 )
-from .models import CompanyDataTier, Freshness, IndustryKind, MetricBasis, ReleaseValidity
+from .models import CompanyDataTier, CompanyScreenStatus, Freshness, IndustryKind, MetricBasis, ReleaseValidity
 
 
 FATAL_SOURCE_STATUSES = {"CONFLICT", "CALCULATION_FAILED"}
@@ -292,6 +292,10 @@ def assess_release_records(records: Iterable[Mapping[str, Any]]) -> ReleaseAsses
     rows = list(records)
     if not rows:
         errors.append("EMPTY_RELEASE")
+    screening_contract = bool(rows) and all(
+        str(row.get("schema_version") or "") == "shareholder-screen-v2"
+        for row in rows
+    )
     for index, row in enumerate(rows):
         company_id = str(row.get("company_id") or "")
         if not company_id:
@@ -301,6 +305,52 @@ def assess_release_records(records: Iterable[Mapping[str, Any]]) -> ReleaseAsses
         company_ids.add(company_id)
         if _contains_non_finite(row):
             errors.append(f"NON_FINITE_VALUE:{company_id or index}")
+        if screening_contract:
+            status = str(row.get("status") or "")
+            if status not in {item.value for item in CompanyScreenStatus}:
+                errors.append(f"INVALID_SCREEN_STATUS:{company_id or index}")
+            if not isinstance(row.get("price"), Mapping):
+                errors.append(f"INVALID_PRICE:{company_id or index}")
+            for score_id in ("opportunity_score", "financial_resilience_score"):
+                record = row.get(score_id)
+                if not isinstance(record, Mapping):
+                    errors.append(f"INVALID_SCORE_OBJECT:{company_id or index}:{score_id}")
+                    continue
+                try:
+                    coverage = Decimal(str(record.get("coverage")))
+                except (InvalidOperation, ValueError):
+                    errors.append(f"INVALID_COVERAGE:{company_id or index}:{score_id}")
+                    continue
+                if not coverage.is_finite() or not Decimal("0") <= coverage <= Decimal("1"):
+                    errors.append(f"COVERAGE_OUT_OF_RANGE:{company_id or index}:{score_id}")
+                value = record.get("value")
+                if value is not None:
+                    try:
+                        parsed = Decimal(str(value))
+                    except (InvalidOperation, ValueError):
+                        errors.append(f"INVALID_SCORE:{company_id or index}:{score_id}")
+                    else:
+                        if not parsed.is_finite() or not Decimal("0") <= parsed <= Decimal("100"):
+                            errors.append(f"SCORE_OUT_OF_RANGE:{company_id or index}:{score_id}")
+                components = record.get("components")
+                if not isinstance(components, Mapping):
+                    errors.append(f"INVALID_COMPONENTS:{company_id or index}:{score_id}")
+                else:
+                    for component_id, component in components.items():
+                        if not isinstance(component, Mapping) or not component.get("basis"):
+                            errors.append(
+                                f"INVALID_COMPONENT_BASIS:{company_id or index}:{score_id}:{component_id}"
+                            )
+            fatal = set(map(str, row.get("fatal_errors") or []))
+            allowed_fatal = {
+                "COMPANY_OR_SECURITY_IDENTITY_CONFLICT",
+                "LEGAL_PRICE_MISSING",
+                "NON_FINITE_INPUT",
+                "STRUCTURE_DAMAGED",
+            }
+            if fatal - allowed_fatal:
+                errors.append(f"INVALID_FATAL_ERROR:{company_id or index}")
+            continue
         if str(row.get("data_tier") or "") not in {item.value for item in CompanyDataTier}:
             errors.append(f"INVALID_DATA_TIER:{company_id or index}")
         scores = row.get("scores")

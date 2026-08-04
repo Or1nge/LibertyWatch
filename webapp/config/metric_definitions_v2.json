@@ -1,8 +1,233 @@
 {
-  "schema_version": "1.0",
-  "definition_version": "shareholder-return-v2.1.0",
-  "calculation_version": "shareholder-return-v2.1.0",
+  "schema_version": "2.0",
+  "definition_version": "shareholder-screen-v2.2.0",
+  "calculation_version": "shareholder-screen-v2.2.0",
+  "disclaimer_zh": "价格机会分和财务韧性分仅用于筛选与排序，不构成买入建议。",
   "metrics": [
+    {
+      "id": "current_price",
+      "label_zh": "当前价格",
+      "short_label_zh": "现价",
+      "category": "market",
+      "version": "2.2.0",
+      "unit": "security_currency",
+      "direction": "informational",
+      "formula_symbolic": "latest_valid_futu_price",
+      "formula_plain_zh": "Futu OpenD返回的最近合法证券价格。",
+      "simple_interpretation_zh": "当前监控证券的行情价格。",
+      "good_range_zh": "仅作筛选输入，不单独解释好坏。",
+      "warning_range_zh": "行情过期时停止创建新的价格触发。",
+      "data_window_zh": "最近合法行情",
+      "applicability": [
+        "all_companies"
+      ],
+      "caveats_zh": [
+        "不得将价格创新低直接解释为合理价。"
+      ],
+      "required_fields": [
+        "price",
+        "price_timestamp",
+        "source"
+      ],
+      "source_level": "security",
+      "visibility": "PUBLIC"
+    },
+    {
+      "id": "ttm_dividend_yield",
+      "label_zh": "Futu TTM现金股息率",
+      "short_label_zh": "TTM股息率",
+      "category": "market",
+      "version": "2.2.0",
+      "unit": "percent",
+      "direction": "higher_is_price_signal",
+      "formula_symbolic": "Futu.dividend_ratio_ttm",
+      "formula_plain_zh": "直接使用Futu当前TTM现金股息率，不重建完整财年股息。",
+      "simple_interpretation_zh": "当前价格对应的供应商TTM现金股息率。",
+      "good_range_zh": "4%以上触发进一步研究，但不是买入结论。",
+      "warning_range_zh": "缺失保持为空；只有供应商明确返回0才是已知0。",
+      "data_window_zh": "供应商当前TTM窗口",
+      "applicability": [
+        "all_companies"
+      ],
+      "caveats_zh": [
+        "basis固定为VENDOR。",
+        "拟派分红不得自行加入。"
+      ],
+      "required_fields": [
+        "dividend_ratio_ttm"
+      ],
+      "source_level": "security",
+      "visibility": "PUBLIC"
+    },
+    {
+      "id": "valuation_anchor",
+      "label_zh": "当前估值锚",
+      "short_label_zh": "估值锚",
+      "category": "valuation",
+      "version": "2.2.0",
+      "unit": "score_0_100",
+      "direction": "higher_is_more_price_opportunity",
+      "formula_symbolic": "positive_PE_TTM_to_earnings_yield; PB_fallback; financials_PB_first",
+      "formula_plain_zh": "非金融企业优先使用正PE-TTM折算盈利收益率，正PE次之，PB降级；主要金融企业优先PB。",
+      "simple_interpretation_zh": "衡量当前估值是否进入值得继续研究的区间。",
+      "good_range_zh": "高分仅代表价格信号。",
+      "warning_range_zh": "负PE、0、NaN和Infinity均不可用。",
+      "data_window_zh": "当前Futu估值快照",
+      "applicability": [
+        "all_companies"
+      ],
+      "caveats_zh": [
+        "低PB不能直接解释为高质量。"
+      ],
+      "required_fields": [
+        "pe_ttm_or_pe_or_pb",
+        "profile"
+      ],
+      "source_level": "security",
+      "visibility": "PUBLIC"
+    },
+    {
+      "id": "five_year_price_position",
+      "label_zh": "最近五年价格位置",
+      "short_label_zh": "五年价格位置",
+      "category": "market",
+      "version": "2.2.0",
+      "unit": "score_0_100",
+      "direction": "higher_is_closer_to_historical_low",
+      "formula_symbolic": "100*(1-count(qfq_weekly_close<=current_price)/N)",
+      "formula_plain_zh": "当前价格在最近五年前复权周收盘价中的百分位取反。",
+      "simple_interpretation_zh": "越接近最近五年历史低位，分数越高。",
+      "good_range_zh": "高分表示相对历史价格位置较低。",
+      "warning_range_zh": "不足52个有效周点时保持为空。",
+      "data_window_zh": "最近五年Futu前复权周线",
+      "applicability": [
+        "companies_with_at_least_52_weekly_points"
+      ],
+      "caveats_zh": [
+        "上市时间短不自动解释为便宜。"
+      ],
+      "required_fields": [
+        "current_price",
+        "qfq_weekly_closes"
+      ],
+      "source_level": "security",
+      "visibility": "PUBLIC"
+    },
+    {
+      "id": "opportunity_score",
+      "label_zh": "价格机会分",
+      "short_label_zh": "价格机会分",
+      "category": "screening_score",
+      "version": "2.2.0",
+      "unit": "score_0_100",
+      "direction": "higher_is_more_research_worthy",
+      "formula_symbolic": "40%*TTM_dividend_yield+35%*valuation+25%*five_year_price_position; shrink_to_50_by_coverage",
+      "formula_plain_zh": "三个价格组成项按固定权重汇总，缺失项通过coverage将原始分数向50收缩。",
+      "simple_interpretation_zh": "回答当前价格是否进入值得进一步研究的区间。",
+      "good_range_zh": "75分以上触发Codex研究。",
+      "warning_range_zh": "必须与coverage和财务韧性同时阅读。",
+      "data_window_zh": "当前TTM/估值与最近五年周线",
+      "applicability": [
+        "all_companies_with_any_price_component"
+      ],
+      "caveats_zh": [
+        "不是买入建议。",
+        "缺失权重不会重新分配后直接产生极端分数。"
+      ],
+      "required_fields": [
+        "components",
+        "coverage",
+        "basis",
+        "warnings"
+      ],
+      "source_level": "company",
+      "visibility": "PUBLIC"
+    },
+    {
+      "id": "financial_resilience_score",
+      "label_zh": "财务韧性分",
+      "short_label_zh": "财务韧性分",
+      "category": "screening_score",
+      "version": "2.2.0",
+      "unit": "score_0_100",
+      "direction": "higher_is_more_resilient",
+      "formula_symbolic": "profile_specific_annual_financial_quality; time_series_weight*min(1,continuous_years/3); shrink_to_50_by_coverage",
+      "formula_plain_zh": "通用企业使用净利润、经营现金流、简化FCF和资产负债表；金融企业使用净利润、ROE、净资产增长及监管资本或资产质量。",
+      "simple_interpretation_zh": "回答最近三至五年公开报表是否表现出基本财务韧性。",
+      "good_range_zh": "60分以上可与价格机会分形成复合触发。",
+      "warning_range_zh": "一至两年数据按证据权重收缩；金融企业不套用普通企业FCF。",
+      "data_window_zh": "最近三至五个完整财年",
+      "applicability": [
+        "all_companies_with_any_financial_component"
+      ],
+      "caveats_zh": [
+        "简化FCF未猜测租赁本金。",
+        "不是买入建议。"
+      ],
+      "required_fields": [
+        "profile",
+        "components",
+        "coverage",
+        "basis",
+        "warnings"
+      ],
+      "source_level": "company",
+      "visibility": "PUBLIC"
+    },
+    {
+      "id": "screening_coverage",
+      "label_zh": "筛选数据覆盖度",
+      "short_label_zh": "覆盖度",
+      "category": "data_quality",
+      "version": "2.2.0",
+      "unit": "ratio_0_1",
+      "direction": "higher_is_better",
+      "formula_symbolic": "sum(valid_effective_component_weights)",
+      "formula_plain_zh": "实际有效组成项权重之和；时间序列组成项再乘连续财年证据因子。",
+      "simple_interpretation_zh": "说明分数由多少有效证据支持。",
+      "good_range_zh": "1表示取得全部名义权重。",
+      "warning_range_zh": "覆盖不足时公司仍可发布为DATA_LIMITED。",
+      "data_window_zh": "继承对应筛选分数",
+      "applicability": [
+        "all_companies"
+      ],
+      "caveats_zh": [
+        "缺失不填0。"
+      ],
+      "required_fields": [
+        "coverage"
+      ],
+      "source_level": "company",
+      "visibility": "PUBLIC"
+    },
+    {
+      "id": "codex_risk_analysis",
+      "label_zh": "Codex风险分析",
+      "short_label_zh": "Codex结论",
+      "category": "qualitative",
+      "version": "2.0.0",
+      "unit": "report",
+      "direction": "informational",
+      "formula_symbolic": "none",
+      "formula_plain_zh": "在确定性筛选或重大事件触发后，基于不可变research bundle生成并通过严格Schema验证。",
+      "simple_interpretation_zh": "判断价格信号是机会、合理价还是价值陷阱。",
+      "good_range_zh": "来源完整、结论可证伪、下一次复核条件明确。",
+      "warning_range_zh": "Codex不得修改量化分数或结构化财务数字。",
+      "data_window_zh": "任务创建时冻结的输入快照",
+      "applicability": [
+        "deterministically_triggered_companies"
+      ],
+      "caveats_zh": [
+        "无来源的确定性事实结论不得公开。"
+      ],
+      "required_fields": [
+        "input_snapshot_hash",
+        "sources",
+        "report_markdown"
+      ],
+      "source_level": "analysis",
+      "visibility": "PUBLIC"
+    },
     {
       "id": "ordinary_cash_dividend",
       "label_zh": "普通现金分红",
@@ -17,10 +242,20 @@
       "good_range_zh": "连续且由正常经营或资本生成覆盖。",
       "warning_range_zh": "暂停、同比下降超过30%，或主要依靠举债。",
       "data_window_zh": "单个已结束完整财年",
-      "applicability": ["all_common_equity"],
-      "caveats_zh": ["不含特别股息、非现金分配和未经批准的建议分红。"],
-      "required_fields": ["ordinary_dividend", "fiscal_year", "approval_status", "source"],
-      "source_level": "company"
+      "applicability": [
+        "all_common_equity"
+      ],
+      "caveats_zh": [
+        "不含特别股息、非现金分配和未经批准的建议分红。"
+      ],
+      "required_fields": [
+        "ordinary_dividend",
+        "fiscal_year",
+        "approval_status",
+        "source"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "special_dividend",
@@ -36,10 +271,19 @@
       "good_range_zh": "仅作为额外现金回报透明披露。",
       "warning_range_zh": "占表面分配额30%以上时触发一次性分配警告。",
       "data_window_zh": "单个已结束完整财年",
-      "applicability": ["all_common_equity"],
-      "caveats_zh": ["特别股息变化不得影响H。"],
-      "required_fields": ["special_dividend", "classification", "source"],
-      "source_level": "company"
+      "applicability": [
+        "all_common_equity"
+      ],
+      "caveats_zh": [
+        "特别股息变化不得影响H。"
+      ],
+      "required_fields": [
+        "special_dividend",
+        "classification",
+        "source"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "eligible_buyback",
@@ -55,10 +299,19 @@
       "good_range_zh": "注销完成且稀释后总股本持续下降。",
       "warning_range_zh": "只公告、未注销或被激励发行完全补回时为0。",
       "data_window_zh": "单个已结束完整财年",
-      "applicability": ["all_common_equity"],
-      "caveats_zh": ["回购现金、注销数和稀释后股本变化必须可对账。"],
-      "required_fields": ["gross_cancelled_buyback", "cancelled_shares", "diluted_net_share_reduction"],
-      "source_level": "company"
+      "applicability": [
+        "all_common_equity"
+      ],
+      "caveats_zh": [
+        "回购现金、注销数和稀释后股本变化必须可对账。"
+      ],
+      "required_fields": [
+        "gross_cancelled_buyback",
+        "cancelled_shares",
+        "diluted_net_share_reduction"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "buyback_persistence_factor",
@@ -74,10 +327,17 @@
       "good_range_zh": "qB=1.0表示最近5年有4至5年净减少。",
       "warning_range_zh": "有回购但没有净减少时不得获得持续性确认。",
       "data_window_zh": "最近最多5个完整财年",
-      "applicability": ["legacy_v2_0_only"],
-      "caveats_zh": ["v2.1年度有效分配额不使用该系数。"],
-      "required_fields": ["diluted_net_share_reduction_by_year"],
-      "source_level": "company"
+      "applicability": [
+        "legacy_v2_0_only"
+      ],
+      "caveats_zh": [
+        "v2.1年度有效分配额不使用该系数。"
+      ],
+      "required_fields": [
+        "diluted_net_share_reduction_by_year"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "effective_distribution",
@@ -93,10 +353,18 @@
       "good_range_zh": "长期稳定且现金流或资本覆盖充足。",
       "warning_range_zh": "一次性跳升、最近归零或来源不完整。",
       "data_window_zh": "单个已结束完整财年",
-      "applicability": ["all_common_equity"],
-      "caveats_zh": ["特别股息不进入X_t。"],
-      "required_fields": ["ordinary_cash_dividend", "verified_eligible_buyback"],
-      "source_level": "company"
+      "applicability": [
+        "all_common_equity"
+      ],
+      "caveats_zh": [
+        "特别股息不进入X_t。"
+      ],
+      "required_fields": [
+        "ordinary_cash_dividend",
+        "verified_eligible_buyback"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "recent_2y_distribution",
@@ -112,10 +380,18 @@
       "good_range_zh": "接近或高于五年中位数且最近一年未明显下降。",
       "warning_range_zh": "最近一年归零或显著低于历史中位数。",
       "data_window_zh": "最近2个完整财年",
-      "applicability": ["all_common_equity"],
-      "caveats_zh": ["少于2个完整财年不可计算。"],
-      "required_fields": ["effective_distribution_latest", "effective_distribution_previous"],
-      "source_level": "company"
+      "applicability": [
+        "all_common_equity"
+      ],
+      "caveats_zh": [
+        "少于2个完整财年不可计算。"
+      ],
+      "required_fields": [
+        "effective_distribution_latest",
+        "effective_distribution_previous"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "median_5y_distribution",
@@ -131,10 +407,17 @@
       "good_range_zh": "与R2和T10方向一致。",
       "warning_range_zh": "样本短或包含多次中断时可信度较低。",
       "data_window_zh": "最近最多5个完整财年",
-      "applicability": ["all_common_equity"],
-      "caveats_zh": ["只使用有来源且状态有效的完整财年。"],
-      "required_fields": ["effective_distribution_history"],
-      "source_level": "company"
+      "applicability": [
+        "all_common_equity"
+      ],
+      "caveats_zh": [
+        "只使用有来源且状态有效的完整财年。"
+      ],
+      "required_fields": [
+        "effective_distribution_history"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "winsorized_10y_distribution",
@@ -150,10 +433,17 @@
       "good_range_zh": "与最近分配和五年中位数大致一致。",
       "warning_range_zh": "早期高分配远高于近期水平。",
       "data_window_zh": "最近最多10个完整财年",
-      "applicability": ["all_common_equity"],
-      "caveats_zh": ["不足8年时最终H仍受中位数上限约束。"],
-      "required_fields": ["effective_distribution_history"],
-      "source_level": "company"
+      "applicability": [
+        "all_common_equity"
+      ],
+      "caveats_zh": [
+        "不足8年时最终H仍受中位数上限约束。"
+      ],
+      "required_fields": [
+        "effective_distribution_history"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "historical_conservative_distribution",
@@ -169,10 +459,19 @@
       "good_range_zh": "R2、M5和T10接近且历史不少于8年。",
       "warning_range_zh": "历史不足2年不可计算；样本越短推荐上限越低。",
       "data_window_zh": "最近2至10个完整财年",
-      "applicability": ["all_common_equity"],
-      "caveats_zh": ["不是未来承诺，只是结构化保守基准。"],
-      "required_fields": ["recent_2y_distribution", "median_5y_distribution", "winsorized_10y_distribution"],
-      "source_level": "company"
+      "applicability": [
+        "all_common_equity"
+      ],
+      "caveats_zh": [
+        "不是未来承诺，只是结构化保守基准。"
+      ],
+      "required_fields": [
+        "recent_2y_distribution",
+        "median_5y_distribution",
+        "winsorized_10y_distribution"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "fcf5",
@@ -188,10 +487,18 @@
       "good_range_zh": "稳定为正并覆盖历史保守分配额。",
       "warning_range_zh": "持续为负、来源缺失或行业口径不适用。",
       "data_window_zh": "最近最多5个完整财年",
-      "applicability": ["non_financial"],
-      "caveats_zh": ["银行、保险、券商不得使用该公式。"],
-      "required_fields": ["operating_cash_flow", "capital_expenditure"],
-      "source_level": "company"
+      "applicability": [
+        "non_financial"
+      ],
+      "caveats_zh": [
+        "银行、保险、券商不得使用该公式。"
+      ],
+      "required_fields": [
+        "operating_cash_flow",
+        "capital_expenditure"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "fcf_capacity",
@@ -207,10 +514,18 @@
       "good_range_zh": "为正且覆盖H至少1.2倍。",
       "warning_range_zh": "为负、低于H或使用简化FCF时需复核。",
       "data_window_zh": "最近2至5个连续完整财年",
-      "applicability": ["non_financial"],
-      "caveats_zh": ["简化FCF使用85%而非90%容量上限。"],
-      "required_fields": ["operating_cash_flow", "capital_expenditure"],
-      "source_level": "company"
+      "applicability": [
+        "non_financial"
+      ],
+      "caveats_zh": [
+        "简化FCF使用85%而非90%容量上限。"
+      ],
+      "required_fields": [
+        "operating_cash_flow",
+        "capital_expenditure"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "sustainable_distribution",
@@ -226,10 +541,18 @@
       "good_range_zh": "接近H且覆盖状态完整。",
       "warning_range_zh": "明显低于H、覆盖数据不足或行业适配器未完成。",
       "data_window_zh": "历史分配2至10年；覆盖最多5年",
-      "applicability": ["adapter_specific"],
-      "caveats_zh": ["金融业数据不足时返回INSUFFICIENT_DATA，不回退到FCF。"],
-      "required_fields": ["historical_conservative_distribution", "coverage_adapter_result"],
-      "source_level": "company"
+      "applicability": [
+        "adapter_specific"
+      ],
+      "caveats_zh": [
+        "金融业数据不足时返回INSUFFICIENT_DATA，不回退到FCF。"
+      ],
+      "required_fields": [
+        "historical_conservative_distribution",
+        "coverage_adapter_result"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "coverage_ratio",
@@ -245,10 +568,18 @@
       "good_range_zh": "1.20以上较稳健，1.50以上覆盖充足。",
       "warning_range_zh": "低于1.00需复核，低于0.50为严重不足。",
       "data_window_zh": "与H及行业覆盖窗口一致",
-      "applicability": ["adapter_specific"],
-      "caveats_zh": ["不同适配器的经济含义不完全相同。"],
-      "required_fields": ["historical_conservative_distribution", "coverage_capacity"],
-      "source_level": "company"
+      "applicability": [
+        "adapter_specific"
+      ],
+      "caveats_zh": [
+        "不同适配器的经济含义不完全相同。"
+      ],
+      "required_fields": [
+        "historical_conservative_distribution",
+        "coverage_capacity"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "balance_sheet_risk_indicator",
@@ -264,10 +595,17 @@
       "good_range_zh": "净现金，或较低的净负债/权益。",
       "warning_range_zh": "高杠杆或只能使用负债/资产代理。",
       "data_window_zh": "最近可用完整资产负债表",
-      "applicability": ["adapter_specific"],
-      "caveats_zh": ["代理指标会降低公司层级和置信度。"],
-      "required_fields": ["balance_sheet_adapter"],
-      "source_level": "company"
+      "applicability": [
+        "adapter_specific"
+      ],
+      "caveats_zh": [
+        "代理指标会降低公司层级和置信度。"
+      ],
+      "required_fields": [
+        "balance_sheet_adapter"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "company_market_cap",
@@ -283,10 +621,20 @@
       "good_range_zh": "股份权利已核验，或供应商总市值语义明确且隐含股份数差异不超过2%。",
       "warning_range_zh": "差异2%至5%降级估算；超过5%或权利未知时阻断。",
       "data_window_zh": "当前行情与最近有效股本时点",
-      "applicability": ["all_common_equity"],
-      "caveats_zh": ["未经授权的供应商totalMarketValue不得进入分母。"],
-      "required_fields": ["selected_security_price", "equivalent_shares", "fx_rate", "capital_structure_authorization"],
-      "source_level": "company_and_security"
+      "applicability": [
+        "all_common_equity"
+      ],
+      "caveats_zh": [
+        "未经授权的供应商totalMarketValue不得进入分母。"
+      ],
+      "required_fields": [
+        "selected_security_price",
+        "equivalent_shares",
+        "fx_rate",
+        "capital_structure_authorization"
+      ],
+      "source_level": "company_and_security",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "selected_security_equivalent_value",
@@ -302,10 +650,20 @@
       "good_range_zh": "股份权利已核验，或供应商总市值语义明确且隐含股份数差异不超过2%。",
       "warning_range_zh": "差异2%至5%降级估算；超过5%或权利未知时阻断。",
       "data_window_zh": "当前行情与最近授权股本时点",
-      "applicability": ["all_common_equity"],
-      "caveats_zh": ["未经授权的供应商totalMarketValue不得进入分母。"],
-      "required_fields": ["selected_security_price", "equivalent_shares", "fx_rate", "capital_structure_authorization"],
-      "source_level": "company_and_security"
+      "applicability": [
+        "all_common_equity"
+      ],
+      "caveats_zh": [
+        "未经授权的供应商totalMarketValue不得进入分母。"
+      ],
+      "required_fields": [
+        "selected_security_price",
+        "equivalent_shares",
+        "fx_rate",
+        "capital_structure_authorization"
+      ],
+      "source_level": "company_and_security",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "raw_2y_shareholder_yield",
@@ -321,10 +679,18 @@
       "good_range_zh": "达到4%且SSY也接近或超过4%。",
       "warning_range_zh": "达到4%但SSY低于4%时优先检查收益陷阱。",
       "data_window_zh": "最近2个完整财年与当前总市值",
-      "applicability": ["all_common_equity"],
-      "caveats_zh": ["未经过现金流或资本覆盖限制。"],
-      "required_fields": ["recent_2y_distribution", "selected_security_equivalent_value"],
-      "source_level": "company"
+      "applicability": [
+        "all_common_equity"
+      ],
+      "caveats_zh": [
+        "未经过现金流或资本覆盖限制。"
+      ],
+      "required_fields": [
+        "recent_2y_distribution",
+        "selected_security_equivalent_value"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "sustainable_shareholder_yield",
@@ -340,10 +706,18 @@
       "good_range_zh": "4%以上为现金锚定型候选，仍需通过风险和否决检查。",
       "warning_range_zh": "数据不完整、覆盖不足或仅由股价急跌推高时不可机械推荐。",
       "data_window_zh": "历史2至10年、覆盖最多5年、当前总市值",
-      "applicability": ["adapter_specific"],
-      "caveats_zh": ["不是收益保证；A/H口径不完整时不可计算。"],
-      "required_fields": ["sustainable_distribution", "selected_security_equivalent_value"],
-      "source_level": "company"
+      "applicability": [
+        "adapter_specific"
+      ],
+      "caveats_zh": [
+        "不是收益保证；A/H口径不完整时不可计算。"
+      ],
+      "required_fields": [
+        "sustainable_distribution",
+        "selected_security_equivalent_value"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "company_value_at_4pct",
@@ -359,10 +733,17 @@
       "good_range_zh": "当前总市值不高于该参考线时进入4%现金观察区。",
       "warning_range_zh": "不是目标价或保证价值。",
       "data_window_zh": "随S慢更新，随口径版本变化",
-      "applicability": ["all_common_equity_with_valid_s"],
-      "caveats_zh": ["证券层价格线还需验证股份权利、股本和币种。"],
-      "required_fields": ["sustainable_distribution"],
-      "source_level": "company"
+      "applicability": [
+        "all_common_equity_with_valid_s"
+      ],
+      "caveats_zh": [
+        "证券层价格线还需验证股份权利、股本和币种。"
+      ],
+      "required_fields": [
+        "sustainable_distribution"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "organic_growth",
@@ -378,10 +759,17 @@
       "good_range_zh": "稳定为正且有5年连续证据。",
       "warning_range_zh": "短历史、断档或负增长。",
       "data_window_zh": "最近2至5个连续完整财年",
-      "applicability": ["non_financial"],
-      "caveats_zh": ["正增长贡献仍受历史长度上限约束。"],
-      "required_fields": ["fcf_capacity_series"],
-      "source_level": "company"
+      "applicability": [
+        "non_financial"
+      ],
+      "caveats_zh": [
+        "正增长贡献仍受历史长度上限约束。"
+      ],
+      "required_fields": [
+        "fcf_capacity_series"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "conservative_growth",
@@ -397,10 +785,17 @@
       "good_range_zh": "0至3%，且来自公司整体现金流或行业资本生成。",
       "warning_range_zh": "负值会全部降低CR10；不得使用含回购效果的每股增长。",
       "data_window_zh": "最近最多5个连续完整财年",
-      "applicability": ["adapter_specific"],
-      "caveats_zh": ["不同金融行业使用各自整体业务代理指标。"],
-      "required_fields": ["organic_growth_series"],
-      "source_level": "company"
+      "applicability": [
+        "adapter_specific"
+      ],
+      "caveats_zh": [
+        "不同金融行业使用各自整体业务代理指标。"
+      ],
+      "required_fields": [
+        "organic_growth_series"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "valuation_drag",
@@ -416,10 +811,19 @@
       "good_range_zh": "0表示没有额外估值压缩惩罚。",
       "warning_range_zh": "显著负值表示当前估值可能拖累十年回报。",
       "data_window_zh": "当前同口径估值与历史中位数",
-      "applicability": ["adapter_specific"],
-      "caveats_zh": ["负数、无意义或口径不一致的估值不得强行计算。"],
-      "required_fields": ["current_valuation", "historical_median_valuation", "valuation_metric"],
-      "source_level": "company"
+      "applicability": [
+        "adapter_specific"
+      ],
+      "caveats_zh": [
+        "负数、无意义或口径不一致的估值不得强行计算。"
+      ],
+      "required_fields": [
+        "current_valuation",
+        "historical_median_valuation",
+        "valuation_metric"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "valuation_adjustment",
@@ -435,10 +839,19 @@
       "good_range_zh": "0或不适用。",
       "warning_range_zh": "显著负值表示当前估值高于可靠历史参考。",
       "data_window_zh": "当前估值与同口径历史参考",
-      "applicability": ["companies_with_comparable_valuation"],
-      "caveats_zh": ["不适用不是0；页面必须显示状态。"],
-      "required_fields": ["current_valuation", "historical_reference", "valuation_metric"],
-      "source_level": "company"
+      "applicability": [
+        "companies_with_comparable_valuation"
+      ],
+      "caveats_zh": [
+        "不适用不是0；页面必须显示状态。"
+      ],
+      "required_fields": [
+        "current_valuation",
+        "historical_reference",
+        "valuation_metric"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "conservative_return_10y",
@@ -454,10 +867,19 @@
       "good_range_zh": "4%以上表示现金回报或有限增长在保守口径下达到观察线。",
       "warning_range_zh": "不得描述为保证收益或锁定年化回报。",
       "data_window_zh": "当前估值结合最长10年历史",
-      "applicability": ["companies_with_complete_inputs"],
-      "caveats_zh": ["结构性风险和治理风险仍由ERI、否决项和定性研究补充。"],
-      "required_fields": ["sustainable_shareholder_yield", "conservative_growth", "valuation_drag"],
-      "source_level": "company"
+      "applicability": [
+        "companies_with_complete_inputs"
+      ],
+      "caveats_zh": [
+        "结构性风险和治理风险仍由ERI、否决项和定性研究补充。"
+      ],
+      "required_fields": [
+        "sustainable_shareholder_yield",
+        "conservative_growth",
+        "valuation_drag"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "return_score",
@@ -473,10 +895,17 @@
       "good_range_zh": "75分以上对应CR10约5%以上。",
       "warning_range_zh": "缺少CR10时不评分。",
       "data_window_zh": "继承CR10窗口",
-      "applicability": ["companies_with_valid_cr10"],
-      "caveats_zh": ["不包含全部业务、治理和数据风险。"],
-      "required_fields": ["conservative_return_10y"],
-      "source_level": "company"
+      "applicability": [
+        "companies_with_valid_cr10"
+      ],
+      "caveats_zh": [
+        "不包含全部业务、治理和数据风险。"
+      ],
+      "required_fields": [
+        "conservative_return_10y"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "payout_quality",
@@ -492,10 +921,20 @@
       "good_range_zh": "80分以上表示多数结构化维度稳健。",
       "warning_range_zh": "关键子分缺失时不生成看似精确的总分。",
       "data_window_zh": "最近2至10年，分项各自注明",
-      "applicability": ["companies_with_complete_subscores"],
-      "caveats_zh": ["业务耐久度和治理分不在本项内。"],
-      "required_fields": ["coverage_score", "trend_score", "stability_score", "balance_sheet_score"],
-      "source_level": "company"
+      "applicability": [
+        "companies_with_complete_subscores"
+      ],
+      "caveats_zh": [
+        "业务耐久度和治理分不在本项内。"
+      ],
+      "required_fields": [
+        "coverage_score",
+        "trend_score",
+        "stability_score",
+        "balance_sheet_score"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "recommendation_index",
@@ -511,10 +950,20 @@
       "good_range_zh": "80以上且ERI不高、无否决、数据完整才可能为A类。",
       "warning_range_zh": "历史短、评分不完整或存在否决项时受限或降级。",
       "data_window_zh": "继承全部结构化子指标",
-      "applicability": ["companies_with_structured_scores"],
-      "caveats_zh": ["不是买入指令；运行时大模型不得修改。"],
-      "required_fields": ["return_score", "payout_quality", "business_durability_score", "governance_capital_allocation_score"],
-      "source_level": "company"
+      "applicability": [
+        "companies_with_structured_scores"
+      ],
+      "caveats_zh": [
+        "不是买入指令；运行时大模型不得修改。"
+      ],
+      "required_fields": [
+        "return_score",
+        "payout_quality",
+        "business_durability_score",
+        "governance_capital_allocation_score"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "entry_risk_index",
@@ -530,10 +979,17 @@
       "good_range_zh": "0至30为较低风险；31至45需复核。",
       "warning_range_zh": "46至60明显风险；61以上高风险或潜在收益陷阱。",
       "data_window_zh": "继承各风险分项及配置有效期",
-      "applicability": ["companies_with_complete_risk_components"],
-      "caveats_zh": ["结构性配置必须包含来源、截至日、过期日和原因。"],
-      "required_fields": ["risk_components"],
-      "source_level": "company"
+      "applicability": [
+        "companies_with_complete_risk_components"
+      ],
+      "caveats_zh": [
+        "结构性配置必须包含来源、截至日、过期日和原因。"
+      ],
+      "required_fields": [
+        "risk_components"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "data_quality_status",
@@ -549,10 +1005,18 @@
       "good_range_zh": "VALID_RELEASE且公司达到CALCULABLE或VERIFIED。",
       "warning_range_zh": "ESTIMATED需展示代理和默认；BLOCKED不发布RI/ERI。",
       "data_window_zh": "当前计算批次与最后合法快照",
-      "applicability": ["all_companies"],
-      "caveats_zh": ["未知值永远不以0代替。"],
-      "required_fields": ["validation_results", "source_summary"],
-      "source_level": "company"
+      "applicability": [
+        "all_companies"
+      ],
+      "caveats_zh": [
+        "未知值永远不以0代替。"
+      ],
+      "required_fields": [
+        "validation_results",
+        "source_summary"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
       "id": "codex_risk_report",
@@ -568,82 +1032,481 @@
       "good_range_zh": "来源充分、结论可证伪、与结构化否决项清晰分离。",
       "warning_range_zh": "旧报告、等待重试或发现数据冲突时必须显式标记。",
       "data_window_zh": "报告所绑定的不可变输入快照",
-      "applicability": ["valid_triggered_companies"],
-      "caveats_zh": ["属于定性风险研究，不替代结构化财务数据。"],
-      "required_fields": ["input_snapshot_hash", "prompt_version", "model", "reasoning_effort"],
-      "source_level": "analysis"
+      "applicability": [
+        "valid_triggered_companies"
+      ],
+      "caveats_zh": [
+        "属于定性风险研究，不替代结构化财务数据。"
+      ],
+      "required_fields": [
+        "input_snapshot_hash",
+        "prompt_version",
+        "model",
+        "reasoning_effort"
+      ],
+      "source_level": "analysis",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
-      "id": "distribution_trend", "label_zh": "分配趋势", "short_label_zh": "分配趋势", "category": "history", "version": "2.0.0", "unit": "ratio_to_median", "direction": "higher_without_decline_is_better",
-      "formula_symbolic": "R2/M5 with latest-year decline check", "formula_plain_zh": "用最近两年动态分配额除以五年中位数，并同时检查最近一年是否明显下降。", "simple_interpretation_zh": "近期分配相对自身历史常态的位置。", "good_range_zh": "不下降且R2/M5接近或高于1。", "warning_range_zh": "低于0.8或最近一年明显下降。", "data_window_zh": "最近2至5个完整财年", "applicability": ["all_common_equity"], "caveats_zh": ["比值不能替代覆盖和稳定性检查。"], "required_fields": ["recent_2y_distribution", "median_5y_distribution"], "source_level": "company"
+      "id": "distribution_trend",
+      "label_zh": "分配趋势",
+      "short_label_zh": "分配趋势",
+      "category": "history",
+      "version": "2.0.0",
+      "unit": "ratio_to_median",
+      "direction": "higher_without_decline_is_better",
+      "formula_symbolic": "R2/M5 with latest-year decline check",
+      "formula_plain_zh": "用最近两年动态分配额除以五年中位数，并同时检查最近一年是否明显下降。",
+      "simple_interpretation_zh": "近期分配相对自身历史常态的位置。",
+      "good_range_zh": "不下降且R2/M5接近或高于1。",
+      "warning_range_zh": "低于0.8或最近一年明显下降。",
+      "data_window_zh": "最近2至5个完整财年",
+      "applicability": [
+        "all_common_equity"
+      ],
+      "caveats_zh": [
+        "比值不能替代覆盖和稳定性检查。"
+      ],
+      "required_fields": [
+        "recent_2y_distribution",
+        "median_5y_distribution"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
-      "id": "return_type_reason", "label_zh": "进入4%区间的原因", "short_label_zh": "4%原因", "category": "classification", "version": "2.0.0", "unit": "status", "direction": "informational",
-      "formula_symbolic": "CASH_ANCHORED | GROWTH_SUPPLEMENTED | BELOW_THRESHOLD", "formula_plain_zh": "SSY达到4%为现金锚定型；SSY低于4%但CR10达到4%为增长补足型。", "simple_interpretation_zh": "区分4%来自当前可持续现金回报，还是依赖有限增长补足。", "good_range_zh": "现金锚定型视觉强度更高。", "warning_range_zh": "增长补足型需要更谨慎验证增长来源。", "data_window_zh": "继承SSY与CR10", "applicability": ["companies_with_valid_ssy_cr10"], "caveats_zh": ["不是买入结论。"], "required_fields": ["sustainable_shareholder_yield", "conservative_return_10y"], "source_level": "company"
+      "id": "return_type_reason",
+      "label_zh": "进入4%区间的原因",
+      "short_label_zh": "4%原因",
+      "category": "classification",
+      "version": "2.0.0",
+      "unit": "status",
+      "direction": "informational",
+      "formula_symbolic": "CASH_ANCHORED | GROWTH_SUPPLEMENTED | BELOW_THRESHOLD",
+      "formula_plain_zh": "SSY达到4%为现金锚定型；SSY低于4%但CR10达到4%为增长补足型。",
+      "simple_interpretation_zh": "区分4%来自当前可持续现金回报，还是依赖有限增长补足。",
+      "good_range_zh": "现金锚定型视觉强度更高。",
+      "warning_range_zh": "增长补足型需要更谨慎验证增长来源。",
+      "data_window_zh": "继承SSY与CR10",
+      "applicability": [
+        "companies_with_valid_ssy_cr10"
+      ],
+      "caveats_zh": [
+        "不是买入结论。"
+      ],
+      "required_fields": [
+        "sustainable_shareholder_yield",
+        "conservative_return_10y"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
-      "id": "current_price", "label_zh": "当前价格", "short_label_zh": "现价", "category": "market", "version": "2.0.0", "unit": "security_currency", "direction": "informational",
-      "formula_symbolic": "latest validated quote", "formula_plain_zh": "Linux行情采集器取得并验证的最近证券价格。", "simple_interpretation_zh": "证券层当前行情，只用于Linux快变量计算和页面显示。", "good_range_zh": "行情时间在新鲜度阈值内。", "warning_range_zh": "过期行情显示行情过期并阻止公司级实时收益率。", "data_window_zh": "最近合法行情", "applicability": ["security"], "caveats_zh": ["浏览器不使用该价格重新计算收益率。"], "required_fields": ["price", "price_timestamp", "currency", "source"], "source_level": "security"
+      "id": "daily_price_change",
+      "label_zh": "日涨跌幅",
+      "short_label_zh": "日涨跌",
+      "category": "market",
+      "version": "1.0.0",
+      "unit": "percent",
+      "direction": "informational",
+      "formula_symbolic": "provider daily_change_pct",
+      "formula_plain_zh": "行情提供方返回的当日价格涨跌幅。",
+      "simple_interpretation_zh": "短期行情变化，不参与慢变量计算。",
+      "good_range_zh": "仅作行情上下文。",
+      "warning_range_zh": "不能作为长期推荐依据。",
+      "data_window_zh": "当前交易日",
+      "applicability": [
+        "security"
+      ],
+      "caveats_zh": [
+        "不是核心回报指标。"
+      ],
+      "required_fields": [
+        "daily_change_pct",
+        "quote_timestamp"
+      ],
+      "source_level": "security",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
-      "id": "daily_price_change", "label_zh": "日涨跌幅", "short_label_zh": "日涨跌", "category": "market", "version": "1.0.0", "unit": "percent", "direction": "informational",
-      "formula_symbolic": "provider daily_change_pct", "formula_plain_zh": "行情提供方返回的当日价格涨跌幅。", "simple_interpretation_zh": "短期行情变化，不参与慢变量计算。", "good_range_zh": "仅作行情上下文。", "warning_range_zh": "不能作为长期推荐依据。", "data_window_zh": "当前交易日", "applicability": ["security"], "caveats_zh": ["不是核心回报指标。"], "required_fields": ["daily_change_pct", "quote_timestamp"], "source_level": "security"
+      "id": "legacy_preferred_price_v1",
+      "label_zh": "v1理想目标价",
+      "short_label_zh": "理想价v1",
+      "category": "legacy",
+      "version": "1.0.0",
+      "unit": "security_currency",
+      "direction": "reference",
+      "formula_symbolic": "v1 annual_average_per_share/4%",
+      "formula_plain_zh": "迁移期保留的旧版每股年均现金回报4%价格线。",
+      "simple_interpretation_zh": "旧页面兼容字段，不能与v2公司层4%价格线混用。",
+      "good_range_zh": "仅作迁移对照。",
+      "warning_range_zh": "未验证A/H公司层权利时不得当作v2价格线。",
+      "data_window_zh": "v1历史窗口",
+      "applicability": [
+        "legacy_security"
+      ],
+      "caveats_zh": [
+        "明确标记shareholder-return-v1。"
+      ],
+      "required_fields": [
+        "yieldBasis"
+      ],
+      "source_level": "security",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
-      "id": "legacy_preferred_price_v1", "label_zh": "v1理想目标价", "short_label_zh": "理想价v1", "category": "legacy", "version": "1.0.0", "unit": "security_currency", "direction": "reference",
-      "formula_symbolic": "v1 annual_average_per_share/4%", "formula_plain_zh": "迁移期保留的旧版每股年均现金回报4%价格线。", "simple_interpretation_zh": "旧页面兼容字段，不能与v2公司层4%价格线混用。", "good_range_zh": "仅作迁移对照。", "warning_range_zh": "未验证A/H公司层权利时不得当作v2价格线。", "data_window_zh": "v1历史窗口", "applicability": ["legacy_security"], "caveats_zh": ["明确标记shareholder-return-v1。"], "required_fields": ["yieldBasis"], "source_level": "security"
+      "id": "legacy_distance_to_preferred_v1",
+      "label_zh": "距v1理想价",
+      "short_label_zh": "距理想价v1",
+      "category": "legacy",
+      "version": "1.0.0",
+      "unit": "percent",
+      "direction": "lower_is_closer",
+      "formula_symbolic": "(price-v1_preferred)/v1_preferred",
+      "formula_plain_zh": "迁移期旧版现价相对旧4%每股目标价的距离。",
+      "simple_interpretation_zh": "保留旧提醒功能，不参与v2 RI或ERI。",
+      "good_range_zh": "小于等于0表示达到旧版参考线。",
+      "warning_range_zh": "不能替代SSY判断。",
+      "data_window_zh": "当前价格与v1基数",
+      "applicability": [
+        "legacy_security"
+      ],
+      "caveats_zh": [
+        "浏览器仅显示Linux已发布值。"
+      ],
+      "required_fields": [
+        "current_price",
+        "legacy_preferred_price_v1"
+      ],
+      "source_level": "security",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
-      "id": "legacy_distance_to_preferred_v1", "label_zh": "距v1理想价", "short_label_zh": "距理想价v1", "category": "legacy", "version": "1.0.0", "unit": "percent", "direction": "lower_is_closer",
-      "formula_symbolic": "(price-v1_preferred)/v1_preferred", "formula_plain_zh": "迁移期旧版现价相对旧4%每股目标价的距离。", "simple_interpretation_zh": "保留旧提醒功能，不参与v2 RI或ERI。", "good_range_zh": "小于等于0表示达到旧版参考线。", "warning_range_zh": "不能替代SSY判断。", "data_window_zh": "当前价格与v1基数", "applicability": ["legacy_security"], "caveats_zh": ["浏览器仅显示Linux已发布值。"], "required_fields": ["current_price", "legacy_preferred_price_v1"], "source_level": "security"
+      "id": "legacy_shareholder_yield_v1",
+      "label_zh": "v1股息回购率",
+      "short_label_zh": "回报率v1",
+      "category": "legacy",
+      "version": "1.0.0",
+      "unit": "percent",
+      "direction": "higher_with_caveats",
+      "formula_symbolic": "v1 annual_average_per_share/current_price",
+      "formula_plain_zh": "旧版周期年均每股净现金回报除以当前人民币价格。",
+      "simple_interpretation_zh": "迁移期兼容指标，不含v2历史非对称和覆盖调整。",
+      "good_range_zh": "仅供新旧口径核对。",
+      "warning_range_zh": "不得与SSY使用同名字段。",
+      "data_window_zh": "v1历史窗口与当前价",
+      "applicability": [
+        "legacy_security"
+      ],
+      "caveats_zh": [
+        "字段明确标记v1。"
+      ],
+      "required_fields": [
+        "yieldBasis",
+        "current_price"
+      ],
+      "source_level": "security",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
-      "id": "legacy_shareholder_yield_v1", "label_zh": "v1股息回购率", "short_label_zh": "回报率v1", "category": "legacy", "version": "1.0.0", "unit": "percent", "direction": "higher_with_caveats",
-      "formula_symbolic": "v1 annual_average_per_share/current_price", "formula_plain_zh": "旧版周期年均每股净现金回报除以当前人民币价格。", "simple_interpretation_zh": "迁移期兼容指标，不含v2历史非对称和覆盖调整。", "good_range_zh": "仅供新旧口径核对。", "warning_range_zh": "不得与SSY使用同名字段。", "data_window_zh": "v1历史窗口与当前价", "applicability": ["legacy_security"], "caveats_zh": ["字段明确标记v1。"], "required_fields": ["yieldBasis", "current_price"], "source_level": "security"
+      "id": "legacy_valuation_status_v1",
+      "label_zh": "v1估值状态",
+      "short_label_zh": "估值状态v1",
+      "category": "legacy",
+      "version": "1.0.0",
+      "unit": "status",
+      "direction": "informational",
+      "formula_symbolic": "bands(v1 shareholder yield)",
+      "formula_plain_zh": "旧版股息回购率按3%、4%、5%阈值机械分档。",
+      "simple_interpretation_zh": "旧页面筛选状态，不是v2推荐分类。",
+      "good_range_zh": "仅供迁移兼容。",
+      "warning_range_zh": "不能覆盖RI、ERI和否决项。",
+      "data_window_zh": "继承v1回报率",
+      "applicability": [
+        "legacy_security"
+      ],
+      "caveats_zh": [
+        "不构成投资结论。"
+      ],
+      "required_fields": [
+        "legacy_shareholder_yield_v1"
+      ],
+      "source_level": "security",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
-      "id": "legacy_valuation_status_v1", "label_zh": "v1估值状态", "short_label_zh": "估值状态v1", "category": "legacy", "version": "1.0.0", "unit": "status", "direction": "informational",
-      "formula_symbolic": "bands(v1 shareholder yield)", "formula_plain_zh": "旧版股息回购率按3%、4%、5%阈值机械分档。", "simple_interpretation_zh": "旧页面筛选状态，不是v2推荐分类。", "good_range_zh": "仅供迁移兼容。", "warning_range_zh": "不能覆盖RI、ERI和否决项。", "data_window_zh": "继承v1回报率", "applicability": ["legacy_security"], "caveats_zh": ["不构成投资结论。"], "required_fields": ["legacy_shareholder_yield_v1"], "source_level": "security"
+      "id": "legacy_alert_status_v1",
+      "label_zh": "v1提醒状态",
+      "short_label_zh": "提醒v1",
+      "category": "legacy",
+      "version": "1.0.0",
+      "unit": "status",
+      "direction": "informational",
+      "formula_symbolic": "bands(distance_to_v1_preferred)",
+      "formula_plain_zh": "旧版距理想价按已触发、即将触发、关注和未触发分档。",
+      "simple_interpretation_zh": "保留原页面提醒筛选。",
+      "good_range_zh": "仅表示进入旧价格观察区。",
+      "warning_range_zh": "不自动触发v2 Codex风险报告。",
+      "data_window_zh": "当前行情",
+      "applicability": [
+        "legacy_security"
+      ],
+      "caveats_zh": [
+        "v2触发由Linux确定性服务判断。"
+      ],
+      "required_fields": [
+        "legacy_distance_to_preferred_v1"
+      ],
+      "source_level": "security",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
-      "id": "legacy_alert_status_v1", "label_zh": "v1提醒状态", "short_label_zh": "提醒v1", "category": "legacy", "version": "1.0.0", "unit": "status", "direction": "informational",
-      "formula_symbolic": "bands(distance_to_v1_preferred)", "formula_plain_zh": "旧版距理想价按已触发、即将触发、关注和未触发分档。", "simple_interpretation_zh": "保留原页面提醒筛选。", "good_range_zh": "仅表示进入旧价格观察区。", "warning_range_zh": "不自动触发v2 Codex风险报告。", "data_window_zh": "当前行情", "applicability": ["legacy_security"], "caveats_zh": ["v2触发由Linux确定性服务判断。"], "required_fields": ["legacy_distance_to_preferred_v1"], "source_level": "security"
+      "id": "quote_updated_at",
+      "label_zh": "行情更新时间",
+      "short_label_zh": "行情更新",
+      "category": "data_quality",
+      "version": "1.0.0",
+      "unit": "datetime",
+      "direction": "fresher_is_better",
+      "formula_symbolic": "provider quote timestamp",
+      "formula_plain_zh": "行情提供方记录的最近价格时点。",
+      "simple_interpretation_zh": "用于判断行情是否过期。",
+      "good_range_zh": "在配置的新鲜度阈值内。",
+      "warning_range_zh": "过期时停止公司级实时收益率更新。",
+      "data_window_zh": "最近合法行情",
+      "applicability": [
+        "security"
+      ],
+      "caveats_zh": [
+        "服务器接收时间不能替代交易所行情时间。"
+      ],
+      "required_fields": [
+        "price_timestamp"
+      ],
+      "source_level": "security",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
-      "id": "quote_updated_at", "label_zh": "行情更新时间", "short_label_zh": "行情更新", "category": "data_quality", "version": "1.0.0", "unit": "datetime", "direction": "fresher_is_better",
-      "formula_symbolic": "provider quote timestamp", "formula_plain_zh": "行情提供方记录的最近价格时点。", "simple_interpretation_zh": "用于判断行情是否过期。", "good_range_zh": "在配置的新鲜度阈值内。", "warning_range_zh": "过期时停止公司级实时收益率更新。", "data_window_zh": "最近合法行情", "applicability": ["security"], "caveats_zh": ["服务器接收时间不能替代交易所行情时间。"], "required_fields": ["price_timestamp"], "source_level": "security"
+      "id": "target_reached_count_v1",
+      "label_zh": "达到v1理想价数量",
+      "short_label_zh": "已到理想价",
+      "category": "legacy_summary",
+      "version": "1.0.0",
+      "unit": "count",
+      "direction": "informational",
+      "formula_symbolic": "count(v1 distance<=0)",
+      "formula_plain_zh": "当前正式清单中达到旧版4%理想价的证券数。",
+      "simple_interpretation_zh": "旧版价格提醒摘要。",
+      "good_range_zh": "仅作清单统计。",
+      "warning_range_zh": "不是推荐数量。",
+      "data_window_zh": "当前行情快照",
+      "applicability": [
+        "legacy_watchlist"
+      ],
+      "caveats_zh": [
+        "不用于v2自动评分。"
+      ],
+      "required_fields": [
+        "legacy_distance_to_preferred_v1"
+      ],
+      "source_level": "watchlist",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
-      "id": "target_reached_count_v1", "label_zh": "达到v1理想价数量", "short_label_zh": "已到理想价", "category": "legacy_summary", "version": "1.0.0", "unit": "count", "direction": "informational",
-      "formula_symbolic": "count(v1 distance<=0)", "formula_plain_zh": "当前正式清单中达到旧版4%理想价的证券数。", "simple_interpretation_zh": "旧版价格提醒摘要。", "good_range_zh": "仅作清单统计。", "warning_range_zh": "不是推荐数量。", "data_window_zh": "当前行情快照", "applicability": ["legacy_watchlist"], "caveats_zh": ["不用于v2自动评分。"], "required_fields": ["legacy_distance_to_preferred_v1"], "source_level": "watchlist"
+      "id": "target_near_3_count_v1",
+      "label_zh": "距v1理想价0至3%数量",
+      "short_label_zh": "距理想价0至3%",
+      "category": "legacy_summary",
+      "version": "1.0.0",
+      "unit": "count",
+      "direction": "informational",
+      "formula_symbolic": "count(0<v1 distance<=3%)",
+      "formula_plain_zh": "当前正式清单中高于旧版理想价不超过3%的证券数。",
+      "simple_interpretation_zh": "旧版临近提醒摘要。",
+      "good_range_zh": "仅作筛选。",
+      "warning_range_zh": "不是买入信号。",
+      "data_window_zh": "当前行情快照",
+      "applicability": [
+        "legacy_watchlist"
+      ],
+      "caveats_zh": [
+        "不用于v2自动评分。"
+      ],
+      "required_fields": [
+        "legacy_distance_to_preferred_v1"
+      ],
+      "source_level": "watchlist",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
-      "id": "target_near_3_count_v1", "label_zh": "距v1理想价0至3%数量", "short_label_zh": "距理想价0至3%", "category": "legacy_summary", "version": "1.0.0", "unit": "count", "direction": "informational",
-      "formula_symbolic": "count(0<v1 distance<=3%)", "formula_plain_zh": "当前正式清单中高于旧版理想价不超过3%的证券数。", "simple_interpretation_zh": "旧版临近提醒摘要。", "good_range_zh": "仅作筛选。", "warning_range_zh": "不是买入信号。", "data_window_zh": "当前行情快照", "applicability": ["legacy_watchlist"], "caveats_zh": ["不用于v2自动评分。"], "required_fields": ["legacy_distance_to_preferred_v1"], "source_level": "watchlist"
+      "id": "target_near_10_count_v1",
+      "label_zh": "距v1理想价3至10%数量",
+      "short_label_zh": "距理想价3至10%",
+      "category": "legacy_summary",
+      "version": "1.0.0",
+      "unit": "count",
+      "direction": "informational",
+      "formula_symbolic": "count(3%<v1 distance<=10%)",
+      "formula_plain_zh": "当前正式清单中高于旧版理想价3%至10%的证券数。",
+      "simple_interpretation_zh": "旧版观察区摘要。",
+      "good_range_zh": "仅作筛选。",
+      "warning_range_zh": "不是买入信号。",
+      "data_window_zh": "当前行情快照",
+      "applicability": [
+        "legacy_watchlist"
+      ],
+      "caveats_zh": [
+        "不用于v2自动评分。"
+      ],
+      "required_fields": [
+        "legacy_distance_to_preferred_v1"
+      ],
+      "source_level": "watchlist",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
-      "id": "target_near_10_count_v1", "label_zh": "距v1理想价3至10%数量", "short_label_zh": "距理想价3至10%", "category": "legacy_summary", "version": "1.0.0", "unit": "count", "direction": "informational",
-      "formula_symbolic": "count(3%<v1 distance<=10%)", "formula_plain_zh": "当前正式清单中高于旧版理想价3%至10%的证券数。", "simple_interpretation_zh": "旧版观察区摘要。", "good_range_zh": "仅作筛选。", "warning_range_zh": "不是买入信号。", "data_window_zh": "当前行情快照", "applicability": ["legacy_watchlist"], "caveats_zh": ["不用于v2自动评分。"], "required_fields": ["legacy_distance_to_preferred_v1"], "source_level": "watchlist"
+      "id": "net_debt_ebitda",
+      "label_zh": "净负债/EBITDA",
+      "short_label_zh": "净负债倍数",
+      "category": "balance_sheet",
+      "version": "2.0.0",
+      "unit": "multiple",
+      "direction": "lower_is_better",
+      "formula_symbolic": "net debt / comparable EBITDA",
+      "formula_plain_zh": "按项目验证的同口径净负债除以EBITDA；行业不适用时保持为空。",
+      "simple_interpretation_zh": "衡量债务相对经营盈利能力的压力，用于识别分配能力变化。",
+      "good_range_zh": "稳定或下降，并与行业资本结构相符。",
+      "warning_range_zh": "相邻快照增加0.5倍以上触发变化复核。",
+      "data_window_zh": "最近完整报告期与可比历史快照",
+      "applicability": [
+        "comparable_non_financial_companies"
+      ],
+      "caveats_zh": [
+        "银行保险不应强行使用该指标。"
+      ],
+      "required_fields": [
+        "net_debt",
+        "ebitda",
+        "source",
+        "fiscal_period"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
-      "id": "net_debt_ebitda", "label_zh": "净负债/EBITDA", "short_label_zh": "净负债倍数", "category": "balance_sheet", "version": "2.0.0", "unit": "multiple", "direction": "lower_is_better",
-      "formula_symbolic": "net debt / comparable EBITDA", "formula_plain_zh": "按项目验证的同口径净负债除以EBITDA；行业不适用时保持为空。", "simple_interpretation_zh": "衡量债务相对经营盈利能力的压力，用于识别分配能力变化。", "good_range_zh": "稳定或下降，并与行业资本结构相符。", "warning_range_zh": "相邻快照增加0.5倍以上触发变化复核。", "data_window_zh": "最近完整报告期与可比历史快照", "applicability": ["comparable_non_financial_companies"], "caveats_zh": ["银行保险不应强行使用该指标。"], "required_fields": ["net_debt", "ebitda", "source", "fiscal_period"], "source_level": "company"
+      "id": "security_price_at_4pct",
+      "label_zh": "证券层4%参考价格",
+      "short_label_zh": "证券4%价",
+      "category": "valuation",
+      "version": "2.0.0",
+      "unit": "security_currency",
+      "direction": "reference",
+      "formula_symbolic": "(S/4%)/equivalent_company_shares × rights_factor/fx",
+      "formula_plain_zh": "先得到公司层4%参考总市值，再按已核验的各股份类别经济权利、股本和币种换算到具体证券。",
+      "simple_interpretation_zh": "这是经过A/H股份权利和汇率校验后的证券层参考线，不是把公司分配额直接除以单一类别股本。",
+      "good_range_zh": "所有重要股份类别、权利、股本和汇率均完整。",
+      "warning_range_zh": "任一重要类别缺失或权利未核验时暂不可计算。",
+      "data_window_zh": "当前公司股本结构与可持续分配额",
+      "applicability": [
+        "security_with_verified_economic_rights"
+      ],
+      "caveats_zh": [
+        "不是目标价或保证收益。"
+      ],
+      "required_fields": [
+        "sustainable_distribution",
+        "issued_shares",
+        "economic_rights_factor",
+        "fx_to_base"
+      ],
+      "source_level": "security",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
-      "id": "security_price_at_4pct", "label_zh": "证券层4%参考价格", "short_label_zh": "证券4%价", "category": "valuation", "version": "2.0.0", "unit": "security_currency", "direction": "reference",
-      "formula_symbolic": "(S/4%)/equivalent_company_shares × rights_factor/fx", "formula_plain_zh": "先得到公司层4%参考总市值，再按已核验的各股份类别经济权利、股本和币种换算到具体证券。", "simple_interpretation_zh": "这是经过A/H股份权利和汇率校验后的证券层参考线，不是把公司分配额直接除以单一类别股本。", "good_range_zh": "所有重要股份类别、权利、股本和汇率均完整。", "warning_range_zh": "任一重要类别缺失或权利未核验时暂不可计算。", "data_window_zh": "当前公司股本结构与可持续分配额", "applicability": ["security_with_verified_economic_rights"], "caveats_zh": ["不是目标价或保证收益。"], "required_fields": ["sustainable_distribution", "issued_shares", "economic_rights_factor", "fx_to_base"], "source_level": "security"
+      "id": "business_durability",
+      "label_zh": "业务耐久度分",
+      "short_label_zh": "业务耐久度",
+      "category": "score",
+      "version": "2.0.2",
+      "unit": "score_0_100",
+      "direction": "higher_is_better",
+      "formula_symbolic": "versioned structured proxies",
+      "formula_plain_zh": "使用可重复的结构化财务代理指标、人工结构化配置，或经严格Schema和确定性审核通过的Codex调研候选配置。",
+      "simple_interpretation_zh": "衡量业务未来持续产生可分配现金或资本的能力。",
+      "good_range_zh": "来源有效且行业代理指标长期稳定。",
+      "warning_range_zh": "未知或过期时不默认高分，并限制最终推荐指数。",
+      "data_window_zh": "结构化配置有效期",
+      "applicability": [
+        "industry_configured_companies"
+      ],
+      "caveats_zh": [
+        "Codex只能提出候选值；审核结果写入独立reviewed overlay，不得改写原始财务、核心指标或否决项。"
+      ],
+      "required_fields": [
+        "value",
+        "source",
+        "as_of_date",
+        "expires_at",
+        "reason"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
-      "id": "business_durability", "label_zh": "业务耐久度分", "short_label_zh": "业务耐久度", "category": "score", "version": "2.0.2", "unit": "score_0_100", "direction": "higher_is_better",
-      "formula_symbolic": "versioned structured proxies", "formula_plain_zh": "使用可重复的结构化财务代理指标、人工结构化配置，或经严格Schema和确定性审核通过的Codex调研候选配置。", "simple_interpretation_zh": "衡量业务未来持续产生可分配现金或资本的能力。", "good_range_zh": "来源有效且行业代理指标长期稳定。", "warning_range_zh": "未知或过期时不默认高分，并限制最终推荐指数。", "data_window_zh": "结构化配置有效期", "applicability": ["industry_configured_companies"], "caveats_zh": ["Codex只能提出候选值；审核结果写入独立reviewed overlay，不得改写原始财务、核心指标或否决项。"], "required_fields": ["value", "source", "as_of_date", "expires_at", "reason"], "source_level": "company"
+      "id": "governance_capital_allocation",
+      "label_zh": "治理与资本配置分",
+      "short_label_zh": "治理资本配置",
+      "category": "score",
+      "version": "2.0.2",
+      "unit": "score_0_100",
+      "direction": "higher_is_better",
+      "formula_symbolic": "versioned structured governance inputs",
+      "formula_plain_zh": "由可验证结构化治理代理指标、人工配置，或经严格Schema和确定性审核通过的Codex调研候选配置确定。",
+      "simple_interpretation_zh": "衡量治理约束和管理层资本配置纪律。",
+      "good_range_zh": "来源可靠、配置未过期且无重大治理警报。",
+      "warning_range_zh": "未知、过期或存在资金占用等警报时限制推荐。",
+      "data_window_zh": "结构化配置有效期",
+      "applicability": [
+        "configured_companies"
+      ],
+      "caveats_zh": [
+        "Codex只能提出候选值；审核结果写入独立reviewed overlay，不能删除或解除结构化否决。"
+      ],
+      "required_fields": [
+        "value",
+        "source",
+        "as_of_date",
+        "expires_at",
+        "reason"
+      ],
+      "source_level": "company",
+      "visibility": "LEGACY_INTERNAL"
     },
     {
-      "id": "governance_capital_allocation", "label_zh": "治理与资本配置分", "short_label_zh": "治理资本配置", "category": "score", "version": "2.0.2", "unit": "score_0_100", "direction": "higher_is_better",
-      "formula_symbolic": "versioned structured governance inputs", "formula_plain_zh": "由可验证结构化治理代理指标、人工配置，或经严格Schema和确定性审核通过的Codex调研候选配置确定。", "simple_interpretation_zh": "衡量治理约束和管理层资本配置纪律。", "good_range_zh": "来源可靠、配置未过期且无重大治理警报。", "warning_range_zh": "未知、过期或存在资金占用等警报时限制推荐。", "data_window_zh": "结构化配置有效期", "applicability": ["configured_companies"], "caveats_zh": ["Codex只能提出候选值；审核结果写入独立reviewed overlay，不能删除或解除结构化否决。"], "required_fields": ["value", "source", "as_of_date", "expires_at", "reason"], "source_level": "company"
-    },
-    {
-      "id": "quote_coverage_count", "label_zh": "行情覆盖数量", "short_label_zh": "行情覆盖", "category": "data_quality", "version": "1.0.0", "unit": "count", "direction": "higher_is_better",
-      "formula_symbolic": "count(valid current quote)", "formula_plain_zh": "正式清单中拥有有效当前行情的证券数。", "simple_interpretation_zh": "衡量行情采集覆盖，不代表财务数据完整。", "good_range_zh": "等于正式证券总数。", "warning_range_zh": "缺口证券不更新依赖现价的快变量。", "data_window_zh": "当前行情快照", "applicability": ["watchlist"], "caveats_zh": ["与v2公司财务VALID状态不同。"], "required_fields": ["quote_status"], "source_level": "watchlist"
+      "id": "quote_coverage_count",
+      "label_zh": "行情覆盖数量",
+      "short_label_zh": "行情覆盖",
+      "category": "data_quality",
+      "version": "1.0.0",
+      "unit": "count",
+      "direction": "higher_is_better",
+      "formula_symbolic": "count(valid current quote)",
+      "formula_plain_zh": "正式清单中拥有有效当前行情的证券数。",
+      "simple_interpretation_zh": "衡量行情采集覆盖，不代表财务数据完整。",
+      "good_range_zh": "等于正式证券总数。",
+      "warning_range_zh": "缺口证券不更新依赖现价的快变量。",
+      "data_window_zh": "当前行情快照",
+      "applicability": [
+        "watchlist"
+      ],
+      "caveats_zh": [
+        "与v2公司财务VALID状态不同。"
+      ],
+      "required_fields": [
+        "quote_status"
+      ],
+      "source_level": "watchlist",
+      "visibility": "LEGACY_INTERNAL"
     }
   ]
 }

@@ -8,7 +8,8 @@ REMOTE_HOST="${LIBERTY_REMOTE_HOST:-}"
 REMOTE_BASE="${LIBERTY_REMOTE_BASE:-}"
 PUBLIC_PORT="${LIBERTY_PUBLIC_PORT:-}"
 PUBLIC_HOST="${LIBERTY_PUBLIC_HOST:-}"
-V2_ENABLED="${SHAREHOLDER_RETURN_V2_ENABLED:-false}"
+SCREEN_ENABLED="${SHAREHOLDER_SCREEN_ENABLED:-false}"
+CODEX_MODE="${CODEX_ANALYSIS_MODE:-OFF}"
 V2_CANARY_INDEX="${SHAREHOLDER_V2_CANARY_INDEX:-${WEBAPP_DIR}/../data/shareholder-v2/published/structured/current/companies.json}"
 DRY_RUN=0
 SKIP_TESTS=0
@@ -66,8 +67,12 @@ if [[ ! "${PUBLIC_HOST}" =~ ^[A-Za-z0-9.-]+$ ]]; then
   echo "Invalid LIBERTY_PUBLIC_HOST: ${PUBLIC_HOST}" >&2
   exit 2
 fi
-if [[ "${V2_ENABLED}" != "true" && "${V2_ENABLED}" != "false" ]]; then
-  echo "SHAREHOLDER_RETURN_V2_ENABLED must be true or false" >&2
+if [[ "${SCREEN_ENABLED}" != "true" && "${SCREEN_ENABLED}" != "false" ]]; then
+  echo "SHAREHOLDER_SCREEN_ENABLED must be true or false" >&2
+  exit 2
+fi
+if [[ "${CODEX_MODE}" != "OFF" && "${CODEX_MODE}" != "INTERNAL" && "${CODEX_MODE}" != "PUBLIC" ]]; then
+  echo "CODEX_ANALYSIS_MODE must be OFF, INTERNAL, or PUBLIC" >&2
   exit 2
 fi
 
@@ -94,7 +99,7 @@ if ((SKIP_TESTS == 0)); then
   fi
 fi
 
-if [[ "${V2_ENABLED}" == "true" ]]; then
+if [[ "${SCREEN_ENABLED}" == "true" ]]; then
   if [[ ! -f "${V2_CANARY_INDEX}" ]]; then
     echo "v2 activation canary index is missing: ${V2_CANARY_INDEX}" >&2
     exit 1
@@ -157,7 +162,8 @@ echo "Release: ${RELEASE_ID}"
 echo "Target:  ${REMOTE_HOST}:${REMOTE_RELEASE}"
 echo "Port:    ${PUBLIC_PORT}"
 echo "Public:  ${PUBLIC_HOST}"
-echo "V2:      ${V2_ENABLED}"
+echo "Screen:  ${SCREEN_ENABLED}"
+echo "Codex:   ${CODEX_MODE}"
 echo "Archive contents:"
 tar -tzf "${ARCHIVE}"
 
@@ -182,7 +188,7 @@ scp -q "${SSH_OPTIONS[@]}" -- \
   "${ARCHIVE}" "${CHECKSUM}" "${REMOTE_HOST}:${REMOTE_RELEASE}/"
 
 ssh "${SSH_OPTIONS[@]}" -- "${REMOTE_HOST}" \
-  "REMOTE_BASE='${REMOTE_BASE}' REMOTE_RELEASE='${REMOTE_RELEASE}' PUBLIC_PORT='${PUBLIC_PORT}' SHAREHOLDER_RETURN_V2_ENABLED='${V2_ENABLED}' bash -s" <<'REMOTE'
+  "REMOTE_BASE='${REMOTE_BASE}' REMOTE_RELEASE='${REMOTE_RELEASE}' PUBLIC_PORT='${PUBLIC_PORT}' SHAREHOLDER_SCREEN_ENABLED='${SCREEN_ENABLED}' CODEX_ANALYSIS_MODE='${CODEX_MODE}' bash -s" <<'REMOTE'
 set -Eeuo pipefail
 
 archive="${REMOTE_RELEASE}/liberty-watch.tar.gz"
@@ -207,15 +213,17 @@ rollback() {
     cd -- "${previous_release}"
     LIBERTY_SHARED_DIR="${REMOTE_BASE}/shared" \
       LIBERTY_PUBLIC_PORT="${PUBLIC_PORT}" \
-      SHAREHOLDER_RETURN_V2_ENABLED="${SHAREHOLDER_RETURN_V2_ENABLED}" \
+      SHAREHOLDER_SCREEN_ENABLED="${SHAREHOLDER_SCREEN_ENABLED}" \
+      CODEX_ANALYSIS_MODE="${CODEX_ANALYSIS_MODE}" \
       docker compose -p liberty-watch up -d --build --wait --wait-timeout 120
   elif ((status != 0)) && [[ -f "${REMOTE_RELEASE}/compose.yaml" ]]; then
     echo "First release failed; stopping the incomplete Compose project." >&2
     cd -- "${REMOTE_RELEASE}"
-  LIBERTY_SHARED_DIR="${REMOTE_BASE}/shared" \
-    LIBERTY_PUBLIC_PORT="${PUBLIC_PORT}" \
-    SHAREHOLDER_RETURN_V2_ENABLED="${SHAREHOLDER_RETURN_V2_ENABLED}" \
-    docker compose -p liberty-watch down || true
+    LIBERTY_SHARED_DIR="${REMOTE_BASE}/shared" \
+      LIBERTY_PUBLIC_PORT="${PUBLIC_PORT}" \
+      SHAREHOLDER_SCREEN_ENABLED="${SHAREHOLDER_SCREEN_ENABLED}" \
+      CODEX_ANALYSIS_MODE="${CODEX_ANALYSIS_MODE}" \
+      docker compose -p liberty-watch down || true
   fi
   exit "${status}"
 }
@@ -223,19 +231,19 @@ trap rollback EXIT
 
 LIBERTY_SHARED_DIR="${REMOTE_BASE}/shared" \
   LIBERTY_PUBLIC_PORT="${PUBLIC_PORT}" \
-  SHAREHOLDER_RETURN_V2_ENABLED="${SHAREHOLDER_RETURN_V2_ENABLED}" \
+  SHAREHOLDER_SCREEN_ENABLED="${SHAREHOLDER_SCREEN_ENABLED}" \
+  CODEX_ANALYSIS_MODE="${CODEX_ANALYSIS_MODE}" \
   docker compose -p liberty-watch up -d --build --wait --wait-timeout 120
 
-python3 - "${PUBLIC_PORT}" "${SHAREHOLDER_RETURN_V2_ENABLED}" "${REMOTE_RELEASE}" <<'PY'
+python3 - "${PUBLIC_PORT}" "${SHAREHOLDER_SCREEN_ENABLED}" <<'PY'
 import json
 import sys
 import urllib.request
 
 port = int(sys.argv[1])
-v2_enabled = sys.argv[2] == "true"
-release = sys.argv[3]
+screen_enabled = sys.argv[2] == "true"
 paths = ["/healthz", "/readyz", "/api/watchlist"]
-if v2_enabled:
+if screen_enabled:
     paths.extend(("/api/v1/metric-definitions", "/api/v1/companies"))
 for path in paths:
     with urllib.request.urlopen(f"http://127.0.0.1:{port}{path}", timeout=10) as response:
@@ -247,20 +255,28 @@ for path in paths:
                 raise SystemExit("watchlist payload is incomplete")
         elif path == "/api/v1/companies":
             payload = json.load(response)
-            sys.path.insert(0, release)
-            from app.v2_contract import validate_activation_canary
-            with open(
-                f"{release}/config/shareholder_v2_activation_reviews.json",
-                encoding="utf-8",
-            ) as handle:
-                reviews = json.load(handle)
-            validate_activation_canary(
-                payload,
-                approved_company_ids=reviews.get("approved_company_ids", []),
-                expected_company_count=int(reviews.get("expected_company_count", 67)),
-                minimum_scored_companies=int(reviews.get("minimum_scored_companies", 5)),
-            )
+            if payload.get("company_count") != 67 or len(payload.get("companies", [])) != 67:
+                raise SystemExit("shareholder-screen company coverage is incomplete")
 PY
+
+if [[ "${SHAREHOLDER_SCREEN_ENABLED}" == "true" ]]; then
+  docker exec -i liberty-watch-liberty-watch-1 python - <<'PY'
+import json
+import urllib.request
+
+from app.v2_contract import validate_activation_canary
+
+with urllib.request.urlopen(
+    "http://127.0.0.1:5048/api/v1/companies", timeout=10
+) as response:
+    payload = json.load(response)
+with open(
+    "/app/config/shareholder_v2_activation_reviews.json", encoding="utf-8"
+) as handle:
+    reviews = json.load(handle)
+validate_activation_canary(payload, approval=reviews)
+PY
+fi
 
 trap - EXIT
 echo "Release ${REMOTE_RELEASE} is healthy on the server and awaits public verification."
@@ -272,13 +288,13 @@ public_check() {
   curl -fsS --max-time 15 "http://${PUBLIC_HOST}:${PUBLIC_PORT}/api/watchlist" |
     "${PYTHON_BIN}" -c \
       'import json,sys; p=json.load(sys.stdin); assert "meta" in p and "securities" in p'
-  if [[ "${V2_ENABLED}" == "true" ]]; then
+  if [[ "${SCREEN_ENABLED}" == "true" ]]; then
     curl -fsS --max-time 15 "http://${PUBLIC_HOST}:${PUBLIC_PORT}/api/v1/metric-definitions" |
       "${PYTHON_BIN}" -c \
-        'import json,sys; p=json.load(sys.stdin); assert p["definition_version"].startswith("shareholder-return-v2")'
+        'import json,sys; p=json.load(sys.stdin); assert p["definition_version"] == "shareholder-screen-v2.2.0"'
     curl -fsS --max-time 15 "http://${PUBLIC_HOST}:${PUBLIC_PORT}/api/v1/companies" |
       "${PYTHON_BIN}" -c \
-        'import json,sys; sys.path.insert(0,sys.argv[1]); from app.v2_contract import validate_activation_canary; r=json.load(open(sys.argv[2],encoding="utf-8")); validate_activation_canary(json.load(sys.stdin), approved_company_ids=r.get("approved_company_ids",[]), expected_company_count=int(r.get("expected_company_count",67)), minimum_scored_companies=int(r.get("minimum_scored_companies",5)))' \
+        'import json,sys; sys.path.insert(0,sys.argv[1]); from app.v2_contract import validate_activation_canary; r=json.load(open(sys.argv[2],encoding="utf-8")); validate_activation_canary(json.load(sys.stdin), approval=r)' \
         "${WEBAPP_DIR}" "${WEBAPP_DIR}/config/shareholder_v2_activation_reviews.json"
   fi
   curl -fsS --max-time 15 \
@@ -292,19 +308,21 @@ public_check() {
 if ! public_check; then
   echo "Public verification failed; restoring the previous release." >&2
   ssh "${SSH_OPTIONS[@]}" -- "${REMOTE_HOST}" \
-    "REMOTE_BASE='${REMOTE_BASE}' REMOTE_RELEASE='${REMOTE_RELEASE}' PREVIOUS_RELEASE='${PREVIOUS_RELEASE}' PUBLIC_PORT='${PUBLIC_PORT}' SHAREHOLDER_RETURN_V2_ENABLED='${V2_ENABLED}' bash -s" <<'REMOTE'
+    "REMOTE_BASE='${REMOTE_BASE}' REMOTE_RELEASE='${REMOTE_RELEASE}' PREVIOUS_RELEASE='${PREVIOUS_RELEASE}' PUBLIC_PORT='${PUBLIC_PORT}' SHAREHOLDER_SCREEN_ENABLED='${SCREEN_ENABLED}' CODEX_ANALYSIS_MODE='${CODEX_MODE}' bash -s" <<'REMOTE'
 set -Eeuo pipefail
 if [[ -n "${PREVIOUS_RELEASE}" ]] && [[ -f "${PREVIOUS_RELEASE}/compose.yaml" ]]; then
   cd -- "${PREVIOUS_RELEASE}"
   LIBERTY_SHARED_DIR="${REMOTE_BASE}/shared" \
     LIBERTY_PUBLIC_PORT="${PUBLIC_PORT}" \
-    SHAREHOLDER_RETURN_V2_ENABLED="${SHAREHOLDER_RETURN_V2_ENABLED}" \
+    SHAREHOLDER_SCREEN_ENABLED="${SHAREHOLDER_SCREEN_ENABLED}" \
+    CODEX_ANALYSIS_MODE="${CODEX_ANALYSIS_MODE}" \
     docker compose -p liberty-watch up -d --build --wait --wait-timeout 120
 else
   cd -- "${REMOTE_RELEASE}"
   LIBERTY_SHARED_DIR="${REMOTE_BASE}/shared" \
     LIBERTY_PUBLIC_PORT="${PUBLIC_PORT}" \
-    SHAREHOLDER_RETURN_V2_ENABLED="${SHAREHOLDER_RETURN_V2_ENABLED}" \
+    SHAREHOLDER_SCREEN_ENABLED="${SHAREHOLDER_SCREEN_ENABLED}" \
+    CODEX_ANALYSIS_MODE="${CODEX_ANALYSIS_MODE}" \
     docker compose -p liberty-watch down
 fi
 REMOTE

@@ -58,6 +58,22 @@ test("distance sort keeps missing values last in both directions", () => {
   );
 });
 
+test("current screening rows sort by published opportunity score", () => {
+  const rows = [
+    { name: "低分", shareholderReturnV2: { schema_version: "shareholder-screen-v2", opportunity_score: { value: "61.5" } } },
+    { name: "高分", shareholderReturnV2: { schema_version: "shareholder-screen-v2", opportunity_score: { value: "82.1" } } },
+    { name: "缺失", shareholderReturnV2: { schema_version: "shareholder-screen-v2", opportunity_score: { value: null } } },
+  ];
+  assert.deepEqual(
+    sortSecurities(rows, "opportunity", "desc").map((item) => item.name),
+    ["高分", "低分", "缺失"]
+  );
+  assert.deepEqual(
+    sortSecurities(rows, "opportunity", "asc").map((item) => item.name),
+    ["低分", "高分", "缺失"]
+  );
+});
+
 test("filters compose query, market, sector and status", () => {
   const result = filterSecurities(securities, {
     query: "水务",

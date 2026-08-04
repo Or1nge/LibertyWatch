@@ -1,9 +1,10 @@
 {
-  "schema_version": "1.0",
-  "calculation_version": "shareholder-return-v2.1.0",
-  "metric_definition_version": "shareholder-return-v2.1.0",
-  "prompt_version": "risk-review-v1.1.0",
-  "output_schema_version": "1.1",
+  "schema_version": "2.0",
+  "policy_version": "shareholder-screen-policy-v2.2.0",
+  "calculation_version": "shareholder-screen-v2.2.0",
+  "metric_definition_version": "shareholder-screen-v2.2.0",
+  "prompt_version": "risk-review-v2.0.2",
+  "output_schema_version": "2.0",
   "base_currency": "CNY",
   "thresholds": {
     "cash_anchor_yield": "0.04",
@@ -164,6 +165,68 @@
     "absolute_currency_minor_units": "1.00",
     "share_count_relative": "0.005",
     "stale_quote_hours": 24
+  },
+  "screening": {
+    "price_opportunity": {
+      "weights": {
+        "dividend_yield": "0.40",
+        "valuation": "0.35",
+        "five_year_price_position": "0.25"
+      },
+      "dividend_yield_bands_pct": [["0", "0"], ["1", "20"], ["2", "40"], ["3", "60"], ["4", "80"], ["5", "100"]],
+      "earnings_yield_bands_pct": [["0", "0"], ["2", "20"], ["4", "50"], ["6", "75"], ["8", "100"]],
+      "non_financial_pb_fallback_bands": [["0.5", "100"], ["1", "80"], ["1.5", "60"], ["2", "40"], ["3", "20"], ["5", "0"]],
+      "financial_pb_bands": [["0.5", "100"], ["0.8", "85"], ["1", "70"], ["1.5", "40"], ["2", "20"], ["3", "0"]],
+      "history_years": 5,
+      "minimum_weekly_points": 52
+    },
+    "financial_resilience": {
+      "maximum_fiscal_years": 5,
+      "full_evidence_years": 3,
+      "weights": {
+        "NON_FINANCIAL": {
+          "net_profit_quality": "0.25",
+          "operating_cash_flow_quality": "0.25",
+          "simplified_fcf_quality": "0.25",
+          "balance_sheet_resilience": "0.25"
+        },
+        "FINANCIAL": {
+          "net_profit_quality": "0.30",
+          "roe_quality": "0.30",
+          "equity_growth": "0.25",
+          "capital_or_asset_quality": "0.15"
+        }
+      },
+      "trend_bands": [["-0.20", "0"], ["-0.10", "25"], ["0", "50"], ["0.10", "75"], ["0.20", "100"]],
+      "net_debt_to_equity_bands": [["0.30", "85"], ["0.60", "70"], ["1.00", "50"]],
+      "net_debt_to_equity_above_score": "20",
+      "liabilities_to_assets_bands": [["0.40", "80"], ["0.60", "60"], ["0.75", "40"]],
+      "liabilities_to_assets_above_score": "20",
+      "roe_level_bands_pct": [["0", "0"], ["5", "30"], ["8", "55"], ["12", "80"], ["15", "100"]],
+      "equity_growth_bands": [["-0.05", "0"], ["0", "50"], ["0.05", "75"], ["0.10", "100"]]
+    },
+    "profile": {
+      "financial_company_ids": [],
+      "financial_sector_keywords": ["银行", "保险", "证券", "多元金融"]
+    },
+    "triggers": {
+      "opportunity_high_min": "75",
+      "opportunity_combined_min": "65",
+      "resilience_combined_min": "60",
+      "dividend_yield_pct_min": "4",
+      "material_event_codes": [
+        "DIVIDEND_CANCELLED_OR_CUT",
+        "PROFIT_WARNING",
+        "AUDIT_OR_INTERNAL_CONTROL_ALERT",
+        "MAJOR_BUYBACK_OR_CAPITAL_CHANGE",
+        "MAJOR_MA",
+        "MAJOR_CAPEX",
+        "ASSET_SALE",
+        "MAJOR_REGULATORY_PENALTY",
+        "INDUSTRY_POLICY_CHANGE",
+        "SOURCE_CONFLICT"
+      ]
+    }
   },
   "codex": {
     "model": "gpt-5.6-sol",

@@ -23,6 +23,7 @@ from collector.push_quotes import (
 
 
 WEBAPP_ROOT = Path(__file__).resolve().parents[1]
+QUOTE_PUSH_UNIT = WEBAPP_ROOT / "systemd" / "liberty-quote-push.service"
 FIXED_NOW = datetime(2026, 7, 31, tzinfo=timezone.utc)
 
 
@@ -314,6 +315,13 @@ def test_no_push_output_is_atomic_and_cli_testable(tmp_path: Path) -> None:
     replacement = {**payload, "snapshotGeneratedAt": "replacement"}
     atomic_write_json(output, replacement)
     assert json.loads(output.read_text())["snapshotGeneratedAt"] == "replacement"
+
+
+def test_quote_push_unit_allows_atomic_v2_snapshot_handoff() -> None:
+    unit = QUOTE_PUSH_UNIT.read_text(encoding="utf-8")
+    read_write = next(line for line in unit.splitlines() if line.startswith("ReadWritePaths="))
+    assert "/var/lib/liberty/shareholder-v2/inputs" in read_write.split()
+    assert "ProtectSystem=strict" in unit
 
 
 @pytest.mark.parametrize(

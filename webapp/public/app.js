@@ -1,6 +1,5 @@
 import { bindPriceChartInteraction, priceChart } from "./modules/chart.js";
 import { hydrateIcons, icon } from "./modules/icons.js";
-import { renderSafeMarkdown } from "./modules/safe_markdown.js";
 import {
   alertStatus,
   badge,
@@ -124,7 +123,10 @@ function readUiStateFromUrl() {
     "preferred",
     "distance",
     "yield",
-    "updated"
+    "updated",
+    "opportunity",
+    "resilience",
+    "dividend"
   ]);
   state.sort.key = allowedSorts.has(params.get("sort"))
     ? params.get("sort")
@@ -233,6 +235,90 @@ function publishedDisplay(record, fallback = "数据不足") {
   return record.display || String(record.value);
 }
 
+function screeningRecord(security) {
+  const record = security?.shareholderReturnV2;
+  return record?.schema_version === "shareholder-screen-v2" ? record : null;
+}
+
+function screeningNumber(value, digits = 1, suffix = "") {
+  if (value === null || value === undefined || value === "") return "数据不足";
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? `${parsed.toFixed(digits)}${suffix}` : "数据不足";
+}
+
+function screeningCoverage(record) {
+  const coverageLabel = (value) => value === null || value === undefined || value === ""
+    ? "数据不足"
+    : screeningNumber(Number(value) * 100, 0, "%");
+  const opportunity = coverageLabel(record?.opportunity_score?.coverage);
+  const resilience = coverageLabel(record?.financial_resilience_score?.coverage);
+  return `价格 ${opportunity} · 财务 ${resilience}`;
+}
+
+function screeningValuation(record) {
+  const component = record?.opportunity_score?.components?.valuation;
+  if (!component || component.input_value === null || component.input_value === undefined) return "数据不足";
+  const label = component.metric === "PB" ? "PB" : component.metric?.includes("TTM") ? "PE-TTM" : "PE";
+  return `${label} ${screeningNumber(component.input_value, 2)}`;
+}
+
+function screeningPricePosition(record) {
+  const value = record?.opportunity_score?.components?.five_year_price_position?.percentile_rank;
+  if (value === null || value === undefined || value === "") return "数据不足";
+  const rank = Number(value);
+  return Number.isFinite(rank) ? `${(rank * 100).toFixed(1)}%分位` : "数据不足";
+}
+
+function isScreeningMode() {
+  return state.data?.shareholderReturnV2?.schemaVersion === "shareholder-screen-v2";
+}
+
+function analysisVerdictLabel(value) {
+  return {
+    REJECT: "暂不考虑",
+    WATCH: "继续观察",
+    SMALL_PILOT: "小仓观察",
+    SCALE_IN: "可分步关注"
+  }[value] ?? "尚无结论";
+}
+
+function analysisRiskLabel(value) {
+  return {
+    LOW: "较低",
+    MEDIUM: "中等",
+    HIGH: "较高",
+    CRITICAL: "很高"
+  }[value] ?? "待判断";
+}
+
+function analysisPriceLabel(value) {
+  return {
+    NOT_ATTRACTIVE: "吸引力不足",
+    FAIR: "价格合理",
+    ATTRACTIVE: "具备吸引力",
+    DEEP_VALUE: "明显低估",
+    UNDETERMINED: "证据不足"
+  }[value] ?? "待判断";
+}
+
+function screeningWarningLabel(value) {
+  return {
+    PRICE_HISTORY_MISSING: "五年价格数据暂缺，相关指标未计入价格机会分。",
+    PRICE_HISTORY_INSUFFICIENT: "五年价格数据暂缺，相关指标未计入价格机会分。",
+    SIMPLIFIED_FCF: "自由现金流按经营现金流减资本开支估算，未单列租赁本金。",
+    BALANCE_SHEET_PROXY: "资产负债韧性使用当前可取得的财务指标估算。",
+    PB_FALLBACK: "市盈率不可用，本次估值改用市净率。",
+    STALE_PRICE: "行情已过期，暂不据此新增观察。"
+  }[value] ?? "部分数据暂不可用，相关分数已降低权重。";
+}
+
+function sourceProviderLabel(value) {
+  const normalized = String(value ?? "").toLowerCase();
+  if (normalized.includes("futu")) return "富途 OpenD";
+  if (normalized.includes("cninfo") || normalized.includes("巨潮")) return "巨潮资讯网";
+  return value || "来源待确认";
+}
+
 function dataStatusLabel(status) {
   return {
     VALID: "有效",
@@ -244,6 +330,10 @@ function dataStatusLabel(status) {
 
 function dataTierLabel(tier) {
   return {
+    READY: "就绪",
+    DATA_LIMITED: "覆盖受限",
+    STALE: "行情过期",
+    UNAVAILABLE: "不可用",
     BLOCKED: "阻断",
     ESTIMATED: "估算",
     CALCULABLE: "可计算",
@@ -322,8 +412,7 @@ function openMetricInfo(trigger, { pinned = false } = {}) {
   state.metricInfoTrigger = trigger;
   state.metricInfoPinned = pinned;
   trigger.setAttribute("aria-expanded", "true");
-  const caveats = (definition.caveats_zh ?? []).join("；") || "—";
-  const applicability = (definition.applicability ?? []).join("、") || "—";
+  const caveats = (definition.caveats_zh ?? []).join("；") || "暂无额外说明";
   metricInfoPopover.innerHTML = `
     <div class="metric-info-head">
       <div><small>指标解释</small><h3>${escapeHtml(definition.label_zh)}</h3></div>
@@ -333,18 +422,13 @@ function openMetricInfo(trigger, { pinned = false } = {}) {
       definition.simple_interpretation_zh
     )}</p>
     <dl>
-      <div><dt>具体公式</dt><dd>${escapeHtml(definition.formula_symbolic)}</dd></div>
-      <div><dt>通俗口径</dt><dd>${escapeHtml(definition.formula_plain_zh)}</dd></div>
-      <div><dt>数据窗口</dt><dd>${escapeHtml(definition.data_window_zh)}</dd></div>
-      <div><dt>高低理解</dt><dd>${escapeHtml(
+      <div><dt>如何计算</dt><dd>${escapeHtml(definition.formula_plain_zh)}</dd></div>
+      <div><dt>使用哪些数据</dt><dd>${escapeHtml(definition.data_window_zh)}</dd></div>
+      <div><dt>如何理解</dt><dd>${escapeHtml(
         `${definition.good_range_zh} 警示：${definition.warning_range_zh}`
       )}</dd></div>
-      <div><dt>适用行业</dt><dd>${escapeHtml(applicability)}</dd></div>
-      <div><dt>主要局限</dt><dd>${escapeHtml(caveats)}</dd></div>
-      <div><dt>当前版本</dt><dd>${escapeHtml(
-        `${definition.version} · ${state.data?.shareholderReturnV2?.calculationVersion ?? definition.version}`
-      )}</dd></div>
-      <div><dt>当前数据状态</dt><dd>${escapeHtml(
+      <div><dt>需要注意</dt><dd>${escapeHtml(caveats)}</dd></div>
+      <div><dt>这家公司</dt><dd>${escapeHtml(
         trigger.dataset.metricStatus || "—"
       )}</dd></div>
     </dl>
@@ -700,6 +784,13 @@ async function loadData({ initial = false, reason = "manual" } = {}) {
       state.v2PipelineStatus = null;
     }
     state.data = payload;
+    if (
+      (initial || !previous) &&
+      payload.shareholderReturnV2?.schemaVersion === "shareholder-screen-v2" &&
+      !new URLSearchParams(location.search).has("sort")
+    ) {
+      state.sort = { key: "opportunity", direction: "desc" };
+    }
     state.error = null;
     state.lastFetchFailedAt = null;
     state.loading = false;
@@ -990,15 +1081,42 @@ function summaryCards() {
   const empty = total === 0;
   const value = (number) => (empty ? "—" : String(number ?? 0));
   const coverage = summary.priceAvailableCount ?? 0;
+  if (isScreeningMode()) {
+    const records = state.data.securities
+      .map(screeningRecord)
+      .filter(Boolean);
+    const watchCount = records.filter((record) => record.research_trigger?.eligible).length;
+    const readyCount = records.filter((record) => record.status === "READY").length;
+    const reviewedCount = records.filter((record) => {
+      const analysis = record.analysis || record.analysis_status || {};
+      return Boolean(analysis.one_sentence_conclusion) || analysis.status === "SUCCEEDED";
+    }).length;
+    return `
+      <section class="summary-grid" aria-label="观察清单摘要">
+        <article class="metric-card">
+          <div class="metric-topline"><span class="metric-label">重点观察</span><span class="metric-icon">${icon("target")}</span></div>
+          <div class="metric-value">${value(watchCount)}<small>家</small></div>
+        </article>
+        <article class="metric-card is-amber">
+          <div class="metric-topline"><span class="metric-label">数据完整</span><span class="metric-icon">${icon("database")}</span></div>
+          <div class="metric-value">${value(readyCount)}<small>家</small></div>
+        </article>
+        <article class="metric-card is-amber">
+          <div class="metric-topline"><span class="metric-label">风险复核完成</span><span class="metric-icon">${icon("book")}</span></div>
+          <div class="metric-value">${value(reviewedCount)}<small>家</small></div>
+        </article>
+        <article class="metric-card">
+          <div class="metric-topline"><span class="metric-label">行情覆盖</span><span class="metric-icon">${icon("refresh")}</span></div>
+          <div class="metric-value">${value(coverage)}<small>/ ${total}</small></div>
+        </article>
+      </section>`;
+  }
   return `
     <section class="summary-grid" aria-label="观察清单摘要">
       <article class="metric-card">
         <div class="metric-topline">
           <span class="metric-label">已到理想价</span>
-          <span class="metric-actions">${metricInfoButton(
-            "target_reached_count_v1",
-            "v1兼容统计"
-          )}<span class="metric-icon">${icon("target")}</span></span>
+          <span class="metric-actions"><span class="metric-icon">${icon("target")}</span></span>
         </div>
         <div class="metric-value"><span data-kpi="reached">${value(
           summary.reachedTargetCount
@@ -1007,10 +1125,7 @@ function summaryCards() {
       <article class="metric-card is-amber">
         <div class="metric-topline">
           <span class="metric-label">距理想价 0–3%</span>
-          <span class="metric-actions">${metricInfoButton(
-            "target_near_3_count_v1",
-            "v1兼容统计"
-          )}<span class="metric-icon">${icon("radar")}</span></span>
+          <span class="metric-actions"><span class="metric-icon">${icon("radar")}</span></span>
         </div>
         <div class="metric-value"><span data-kpi="within3">${value(
           summary.within3PctCount
@@ -1019,10 +1134,7 @@ function summaryCards() {
       <article class="metric-card is-amber">
         <div class="metric-topline">
           <span class="metric-label">距理想价 3–10%</span>
-          <span class="metric-actions">${metricInfoButton(
-            "target_near_10_count_v1",
-            "v1兼容统计"
-          )}<span class="metric-icon">${icon("trend")}</span></span>
+          <span class="metric-actions"><span class="metric-icon">${icon("trend")}</span></span>
         </div>
         <div class="metric-value"><span data-kpi="within10">${value(
           summary.within10PctCount
@@ -1048,7 +1160,7 @@ function emptyWatchlist({ compact = false, filtered = false } = {}) {
   const title = filtered ? "没有符合筛选条件的标的" : "等待观察名单";
   const copy = filtered
     ? "尝试清除部分筛选条件，当前排序和筛选会在刷新后保留。"
-    : "表格结构、每分钟检查和数据推送链路已经就绪。载入标的后，系统会按股息回购率自动计算目标价。";
+    : "数据链路已经就绪。载入公司后，系统会展示价格机会、财务韧性和风险复核结果。";
   return `
     <div class="empty-state ${compact ? "compact" : ""}">
       <div>
@@ -1114,7 +1226,7 @@ function filterMarkup() {
             .join("")}
         </select>
       </label>
-      <label class="field field-select">
+      ${isScreeningMode() ? "" : `<label class="field field-select">
         <span class="sr-only">筛选价格状态</span>
         <select data-filter="status">
           ${option("", "全部目标状态", state.filters.status)}
@@ -1144,7 +1256,7 @@ function filterMarkup() {
           ${option("watch", "关注中", state.filters.alert)}
           ${option("none", "未触发", state.filters.alert)}
         </select>
-      </label>
+      </label>`}
     </div>
   `;
 }
@@ -1265,6 +1377,32 @@ function v2TableMetric(security, metricId, { score = false } = {}) {
   )}">${escapeHtml(publishedDisplay(record))}</span>`;
 }
 
+function screeningSecurityRow(security, record) {
+  const id = escapeHtml(security.id);
+  const currentPrice = record.price?.value ?? security.quote?.currentPrice ?? security.currentPrice;
+  const dividendYield = record.opportunity_score?.components?.dividend_yield?.input_value;
+  const analysis = record.analysis || record.analysis_status || {};
+  return `
+    <tr data-row-id="${id}" data-security="${id}">
+      <td>
+        <button class="security-name security-link" type="button" data-security="${id}"
+          aria-label="查看 ${escapeHtml(security.name)} 详情">
+          <span class="security-avatar">${escapeHtml(initials(security.name))}</span>
+          <span><strong>${escapeHtml(security.name)}</strong><small>${escapeHtml(security.ticker || "—")} · ${escapeHtml(marketLabel(security.market))}</small></span>
+        </button>
+      </td>
+      <td class="is-numeric">${escapeHtml(formatPrice(Number(currentPrice), record.price?.currency || security.currency))}</td>
+      <td class="is-numeric">${escapeHtml(screeningNumber(dividendYield, 2, "%"))}</td>
+      <td class="is-numeric">${escapeHtml(screeningValuation(record))}</td>
+      <td class="is-numeric">${escapeHtml(screeningPricePosition(record))}</td>
+      <td class="is-numeric"><strong>${escapeHtml(screeningNumber(record.opportunity_score?.value))}</strong></td>
+      <td class="is-numeric"><strong>${escapeHtml(screeningNumber(record.financial_resilience_score?.value))}</strong></td>
+      <td>${escapeHtml(screeningCoverage(record))}</td>
+      <td><span class="data-tier is-${escapeHtml(String(record.status || "unavailable").toLowerCase())}">${escapeHtml(dataTierLabel(record.status))}</span><br><small>${escapeHtml(analysisStatusLabel(analysis))}</small></td>
+      <td>${escapeHtml(analysis.one_sentence_conclusion || "暂无合法报告")}</td>
+    </tr>`;
+}
+
 function securityRow(security) {
   const id = escapeHtml(security.id);
   const currentPrice = security.quote?.currentPrice ?? security.currentPrice;
@@ -1273,6 +1411,8 @@ function securityRow(security) {
   const valuation = valuationBadgeInfo(security.valuationStatus);
   const alert = alertStatus(security.derived?.alertStatus);
   const updated = security.quote?.lastUpdatedAt ?? security.lastUpdate;
+  const screening = screeningRecord(security);
+  if (screening) return screeningSecurityRow(security, screening);
   return `
     <tr data-row-id="${id}" data-security="${id}">
       <td>
@@ -1360,6 +1500,25 @@ function mobileSecurityCard(security) {
   const change = security.quote?.dailyChangePct ?? security.dailyChangePct;
   const distance = security.derived?.distanceToPreferredPct;
   const target = targetStatus(security.derived?.targetStatus);
+  const screening = screeningRecord(security);
+  if (screening) {
+    const analysis = screening.analysis || screening.analysis_status || {};
+    return `
+      <article class="mobile-security-card" data-row-id="${id}" data-security="${id}" tabindex="0" role="button">
+        <div class="mobile-card-head">
+          <div class="security-name"><span class="security-avatar">${escapeHtml(initials(security.name))}</span><span><strong>${escapeHtml(security.name)}</strong><small>${escapeHtml(security.ticker)} · ${escapeHtml(marketLabel(security.market))}</small></span></div>
+          <span class="data-tier is-${escapeHtml(String(screening.status || "unavailable").toLowerCase())}">${escapeHtml(dataTierLabel(screening.status))}</span>
+        </div>
+        <div class="mobile-card-values mobile-card-primary-values">
+          <span class="mobile-card-value"><small>现价</small><strong>${escapeHtml(formatPrice(Number(screening.price?.value), screening.price?.currency || security.currency))}</strong></span>
+          <span class="mobile-card-value"><small>近12个月股息率</small><strong>${escapeHtml(screeningNumber(screening.opportunity_score?.components?.dividend_yield?.input_value, 2, "%"))}</strong></span>
+          <span class="mobile-card-value"><small>价格机会分</small><strong>${escapeHtml(screeningNumber(screening.opportunity_score?.value))}</strong></span>
+          <span class="mobile-card-value"><small>财务韧性分</small><strong>${escapeHtml(screeningNumber(screening.financial_resilience_score?.value))}</strong></span>
+        </div>
+        <p>${escapeHtml(screeningCoverage(screening))} · ${escapeHtml(analysisStatusLabel(analysis))}</p>
+        <p>${escapeHtml(analysis.one_sentence_conclusion || screening.research_trigger?.reason || "当前未触发研究")}</p>
+      </article>`;
+  }
   return `
     <article class="mobile-security-card" data-row-id="${id}" data-security="${id}"
       tabindex="0" role="button">
@@ -1412,7 +1571,7 @@ function mobileSecurityCard(security) {
       </div>
       <div class="mobile-card-values mobile-card-v2-values">
         <span class="mobile-card-value">
-          <small>v2层级</small>
+          <small>数据状态</small>
           <strong>${escapeHtml(dataTierLabel(security.shareholderReturnV2?.data_tier))}</strong>
         </span>
         <span class="mobile-card-value">
@@ -1447,12 +1606,13 @@ function watchlistPanel({
   const total = source.length;
   const rows = securities.map(securityRow).join("");
   const cards = securities.map(mobileSecurityCard).join("");
+  const screeningMode = isScreeningMode();
   return `
     <section class="panel">
       <div class="panel-header">
         <div class="panel-heading">
           <h2>${escapeHtml(title)}</h2>
-          <p>默认按距理想价由近到远排序 · 刷新不会重置当前视图</p>
+          <p>${screeningMode ? "默认按价格机会分由高到低排序" : "默认按目标价距离排序"} · 刷新不会重置当前视图</p>
         </div>
         <button class="button mobile-filter-button" type="button" data-action="toggle-filters"
           aria-expanded="${state.mobileFiltersOpen}" aria-controls="watchlist-filters">
@@ -1461,7 +1621,9 @@ function watchlistPanel({
         ${filterMarkup()}
       </div>
       <div class="watchlist-disclaimer" role="note">
-        该系统用于筛选和风险研究，不构成收益保证。CR10 是保守情景下的估算基准，不是锁定收益；Codex 报告属于定性风险研究，不替代结构化财务数据。
+        ${screeningMode
+          ? "分数只用于缩小观察范围；风险复核基于公开信息，不能替代独立判断。"
+          : "该系统用于筛选和风险研究，不构成收益保证。CR10 是保守情景下的估算基准，不是锁定收益；Codex 报告属于定性风险研究，不替代结构化财务数据。"}
       </div>
       ${
         securities.length
@@ -1470,14 +1632,26 @@ function watchlistPanel({
               <table class="watchlist-table">
                 <thead>
                   <tr>
+                    ${screeningMode ? `
+                    ${sortableHeader("公司", "name")}
+                    <th>现价</th>
+                    ${sortableHeader("近12个月股息率", "dividend", true, "ttm_dividend_yield")}
+                    <th>${metricHeader("PE-TTM / PB", "valuation_anchor")}</th>
+                    <th>${metricHeader("五年价格位置", "five_year_price_position")}</th>
+                    ${sortableHeader("价格机会分", "opportunity", true, "opportunity_score")}
+                    ${sortableHeader("财务韧性分", "resilience", true, "financial_resilience_score")}
+                    <th>${metricHeader("数据覆盖度", "screening_coverage")}</th>
+                    <th>数据与复核</th>
+                    <th>${metricHeader("风险复核结论", "codex_risk_analysis")}</th>
+                    ` : `
                     ${sortableHeader("证券名称", "name")}
                     ${sortableHeader("代码", "ticker")}
                     ${sortableHeader("市场", "market")}
                     ${sortableHeader("现价", "price", true, "current_price")}
                     ${sortableHeader("日涨跌", "change", true, "daily_price_change")}
-                    ${sortableHeader("理想价v1", "preferred", true, "legacy_preferred_price_v1")}
-                    ${sortableHeader("距理想价v1", "distance", true, "legacy_distance_to_preferred_v1")}
-                    ${sortableHeader("回报率v1", "yield", true, "legacy_shareholder_yield_v1")}
+                    ${sortableHeader("理想价", "preferred", true)}
+                    ${sortableHeader("目标价距离", "distance", true)}
+                    ${sortableHeader("股息回购率", "yield", true)}
                     <th>${metricHeader("数据层级", "data_quality_status")}</th>
                     <th>${metricHeader("SSY", "sustainable_shareholder_yield")}</th>
                     <th>${metricHeader("CR10", "conservative_return_10y")}</th>
@@ -1488,9 +1662,10 @@ function watchlistPanel({
                     <th>${metricHeader("4%原因", "return_type_reason")}</th>
                     <th>行情时效</th>
                     <th>${metricHeader("Codex", "codex_risk_report")}</th>
-                    <th>${metricHeader("估值状态v1", "legacy_valuation_status_v1")}</th>
-                    <th>${metricHeader("提醒状态v1", "legacy_alert_status_v1")}</th>
+                    <th>估值状态</th>
+                    <th>提醒状态</th>
                     ${sortableHeader("行情更新", "updated", false, "quote_updated_at")}
+                    `}
                   </tr>
                 </thead>
                 <tbody data-security-rows>${rows}</tbody>
@@ -2005,7 +2180,6 @@ function dataStatusPage() {
   const v2 = state.v2PipelineStatus || {};
   const v2Meta = state.data.shareholderReturnV2 || {};
   const tierCounts = v2.company_tier_counts || v2Meta.tierCounts || {};
-  const scoredCompanyCount = v2.scored_company_count ?? v2Meta.scoredCompanyCount ?? 0;
   const jobs = v2.jobs || {};
   const v2Healthy = v2Meta.available === true && !v2.last_error;
   return `
@@ -2058,9 +2232,9 @@ function dataStatusPage() {
             : "is-pending"
       )}
       ${statusCard(
-        "股东回报 v2",
+        "公司筛选",
         v2Meta.available
-          ? `${scoredCompanyCount} / ${v2Meta.companyCount ?? 0} 家可评分`
+          ? `${v2Meta.opportunityScoreCount ?? 0} / ${v2Meta.companyCount ?? 0} 家已计算`
           : "等待首个发布",
         v2.last_structured_calculation_at
           ? `计算于 ${formatDateTime(v2.last_structured_calculation_at)}`
@@ -2068,7 +2242,7 @@ function dataStatusPage() {
         v2Healthy ? "is-live" : v2.last_error ? "is-error" : "is-pending"
       )}
       ${statusCard(
-        "Codex任务",
+        "风险复核任务",
         `${jobs.queued ?? 0} 排队 / ${jobs.running ?? 0} 运行`,
         `${jobs.waiting_retry ?? 0} 等待重试 · ${jobs.failed ?? 0} 失败`,
         (jobs.failed ?? 0) > 0 ? "is-error" : (jobs.running ?? 0) > 0 ? "is-live" : "is-pending"
@@ -2108,10 +2282,10 @@ function dataStatusPage() {
           `${meta.historyAvailableCount ?? 0} / ${total}`
         )}
         ${readinessRow(
-          "自动目标价",
-          "按确认现金分红与净注销回购的周期年均每股人民币金额，自动生成 3% / 4% / 5% 三档目标价。",
-          (summary.targetConfiguredCount ?? 0) > 0,
-          `${summary.targetConfiguredCount ?? 0} / ${total}`
+          "价格与财务筛选",
+          "价格机会综合近12个月股息率、当前估值和五年价格位置；财务韧性使用最近五年财务数据。",
+          v2Meta.available === true,
+          `${v2Meta.opportunityScoreCount ?? 0} / ${total}`
         )}
         ${readinessRow(
           "富途估值字段",
@@ -2120,22 +2294,22 @@ function dataStatusPage() {
           `${summary.futuMetricCompleteCount ?? 0} / ${total}`
         )}
         ${readinessRow(
-          "v2结构化发布",
-          "Linux以Decimal完成慢变量与快变量计算；BLOCKED发布当前空分数记录，不用历史分数覆盖。",
+          "筛选数据发布",
+          "服务器完成计算和校验后再发布；缺失值保持为空，不沿用过期分数。",
           v2Healthy,
-          `VERIFIED ${tierCounts.VERIFIED ?? 0} / CALCULABLE ${tierCounts.CALCULABLE ?? 0} / ESTIMATED ${tierCounts.ESTIMATED ?? 0} / BLOCKED ${tierCounts.BLOCKED ?? 0}`
+          `数据完整 ${tierCounts.READY ?? 0} / 部分缺失 ${tierCounts.DATA_LIMITED ?? 0}`
         )}
         ${readinessRow(
-          "v2激活门槛",
-          "至少5家公司同时发布真实RI/ERI，且每家都进入版本化人工审批清单后才允许显式开启。",
-          scoredCompanyCount >= 5,
-          `${scoredCompanyCount} / 5`
+          "公开数据检查",
+          "67家公司必须同时具备合法价格机会分和财务韧性分，任何非有限数值都会阻止发布。",
+          (v2Meta.opportunityScoreCount ?? 0) === 67 && (v2Meta.financialResilienceScoreCount ?? 0) === 67,
+          `${v2Meta.companyCount ?? 0} / 67`
         )}
         ${readinessRow(
-          "本地Codex风险服务",
-          `固定 ${v2.model || "gpt-5.6-sol"} / ${v2.reasoning_effort || "xhigh"}；FastAPI只读取最后成功报告。`,
+          "风险复核服务",
+          "复核在独立任务中完成；网页只读取最后一份通过校验的报告。",
           Boolean(v2.analysis_release),
-          v2.analysis_release || "等待合法报告"
+          v2.analysis_release ? "已有可用报告" : "等待首份报告"
         )}
         ${readinessRow(
           "原子发布与同步",
@@ -2175,12 +2349,13 @@ function readinessRow(title, copy, ready, locationLabel) {
 }
 
 function methodologyPage() {
-  const v2Definitions = [
-    "selected_security_equivalent_value",
-    "sustainable_shareholder_yield",
-    "conservative_return_10y",
-    "recommendation_index",
-    "entry_risk_index",
+  const currentDefinitions = [
+    "ttm_dividend_yield",
+    "valuation_anchor",
+    "five_year_price_position",
+    "opportunity_score",
+    "financial_resilience_score",
+    "screening_coverage",
   ]
     .map(metricDefinition)
     .filter(Boolean);
@@ -2192,72 +2367,41 @@ function methodologyPage() {
     )}
     <section class="methodology-grid">
       <article class="panel">
-        <section class="method-section" id="shareholder-return-v2">
-          <h2>1. 股东回报 v2（当前口径）</h2>
-          <p>Linux 数据服务器完成来源校验、Decimal 计算、自动评分和触发判断；浏览器只显示已发布字段，不重新计算收益率或评分。特别股息单列，只有实际注销且形成稀释后净股本减少的回购才进入基础分配。</p>
-          ${v2Definitions
+        <section class="method-section" id="company-screening">
+          <h2>1. 公司筛选</h2>
+          <p>价格机会分用于判断当前价格是否值得进一步研究，财务韧性分用于观察盈利、现金流和资产负债表是否稳定。两项分数相互独立，均为 0—100 分。</p>
+          ${currentDefinitions
             .map(
               (definition) => `<article class="method-definition">
                 <h3>${escapeHtml(definition.label_zh)}${metricInfoButton(
                   definition.id,
                   "具体公司状态请在详情页查看"
                 )}</h3>
-                <div class="formula">${escapeHtml(definition.formula_symbolic)}</div>
                 <p>${escapeHtml(definition.simple_interpretation_zh)}</p>
+                <p>${escapeHtml(definition.formula_plain_zh)}</p>
               </article>`
             )
             .join("")}
-          <p><strong>重要：</strong>缺失、过期、行业不适用或来源冲突不会显示为 0；关键校验失败时发布当前 BLOCKED 记录、清空RI/ERI并明确列出阻断项。</p>
+          <p><strong>重要：</strong>缺失、过期、行业不适用或来源冲突不会显示为 0。覆盖不足时，页面会明确说明缺少什么，并降低该部分对总分的影响。</p>
         </section>
-        <section class="method-section" id="target-distance">
-          <h2>2. 旧版自动目标价与估值（v1迁移期）</h2>
-          <p>目标价不手工填写。先计算观察期内“确认现金分红 + 净注销回购”的年度每股人民币金额算术平均，再反推对应股息回购率的价格。</p>
-          <div class="formula">目标价 = 周期年均每股净现金回报 ÷ 目标股息回购率</div>
-          <ul>
-            <li>3%：关注价</li>
-            <li>4%：理想目标价，也是提醒主阈值</li>
-            <li>5%：深度价值价</li>
-          </ul>
-          <p>估值状态同样由当前股息回购率自动确定：≥5% 为“深度价值”，4%–5% 为“具吸引力”，3%–4% 为“合理”，低于 3% 为“偏贵”。表格中的估值与提醒标签均可点击筛选。</p>
-          <div class="formula">距离 (%) = (当前价格 − 理想价) ÷ 理想价 × 100</div>
-          <ul>
-            <li>距离 ≤ 0：已到理想价</li>
-            <li>0 &lt; 距离 ≤ 3%：临近理想价</li>
-            <li>3% &lt; 距离 ≤ 10%：进入观察区</li>
-            <li>没有有效行情或理想价：数据不足，不参与计数</li>
-          </ul>
-        </section>
-        <section class="method-section" id="sector-heat">
-          <h2>3. 观察池行业热度</h2>
-          <p>行业热度只在当前观察池内比较。A/H 双重上市公司先在发行人层面合并，再按发行人等权，避免重复影响。</p>
-          <div class="formula">Heat = 20%×P(R1) + 30%×P(R5) + 30%×P(R20) + 10%×P(Breadth5) + 10%×P(AboveMA20)</div>
-          <p>至少需要 3 个独立发行人且历史覆盖率不低于 80%。不足时显示“数据不足”，不会把单日涨跌伪装成完整行业热度。</p>
-        </section>
-        <section class="method-section" id="oversold">
-          <h2>4. 技术超跌与价格机会</h2>
-          <p>接近理想价只说明进入预先设定的估值关注区，并不等于技术超跌。“热门行业错杀”还必须具备 RSI14、60 日回撤、5 日相对行业表现以及合格行业热度。</p>
-          <h3>通用价格机会</h3>
-          <div class="formula">PriceOpportunity = TargetAttractiveness</div>
-          <p>通用价格机会只按现价与 4% 理想目标价的距离排序；当前股息回购率和估值状态作为可核验的上下文展示。</p>
-          <h3>热门行业错杀</h3>
-          <div class="formula">Opportunity = 55%×Target + 30%×Technical + 15%×SectorHeat</div>
-          <p>若技术指标缺失，系统只展示“价格机会”，不会生成“热门行业错杀”。偏冷行业中已经到价的标的单列为“逆向观察”。</p>
+        <section class="method-section" id="risk-review">
+          <h2>2. 风险复核</h2>
+          <p>达到观察条件后，系统会用最新公开披露复核盈利变化、现金回报可持续性、治理和行业风险。复核不会修改任何分数，只补充结构化数据无法回答的定性判断。</p>
+          <p>页面只显示结论、主要风险、下一次复核条件和公开来源；任务状态、模型参数和内部字段不会作为用户内容展示。</p>
         </section>
         <section class="method-section" id="refresh">
-          <h2>5. 刷新与提醒</h2>
+          <h2>3. 数据更新</h2>
           <p>本机每分钟向 Futu OpenD 请求一次快照，再通过 SSH 原子推送到 Ali。浏览器只更新发生变化的数值，保留筛选、排序和滚动位置。</p>
-          <p>提醒状态按现价相对 4% 理想目标价机械计算：已到价为“已触发”，高出 0–3% 为“即将触发”，高出 3–10% 为“关注中”，更远为“未触发”。</p>
+          <p>财务数据按正式报告更新，五年价格位置使用前复权周收盘价。数据缺失时显示“数据不足”，不会用旧值伪装成最新结果。</p>
           <p>港股人民币价使用 HKD/CNY 日参考汇率换算并标注“≈”；它用于统一显示和计算，不代表可成交汇率。</p>
         </section>
       </article>
       <aside class="panel toc">
         <h3>本页内容</h3>
-        <a href="#shareholder-return-v2">股东回报 v2</a>
-        <a href="#target-distance">距理想价</a>
-        <a href="#sector-heat">行业热度</a>
-        <a href="#oversold">技术超跌</a>
-        <a href="#refresh">刷新与提醒</a>
-        <div class="disclaimer"><strong>重要说明</strong><br />本网站是长期投资候选观察工具，不是交易终端、持仓系统或投资建议服务。任何机械状态都需要结合最新公开信息独立判断。</div>
+        <a href="#company-screening">公司筛选</a>
+        <a href="#risk-review">风险复核</a>
+        <a href="#refresh">数据更新</a>
+        <div class="disclaimer"><strong>重要说明</strong><br />本网站是长期投资候选观察工具，不是交易终端、持仓系统或投资建议服务。任何筛选结果都需要结合最新公开信息独立判断。</div>
       </aside>
     </section>
   `;
@@ -2349,7 +2493,7 @@ async function loadV2CompanyDetail(security) {
     );
     const detail = await detailResponse.json().catch(() => null);
     if (!detailResponse.ok || !detail || typeof detail !== "object") {
-      throw new Error(detail?.detail || `新版详情返回 ${detailResponse.status}`);
+      throw new Error(detail?.detail || `详情服务返回 ${detailResponse.status}`);
     }
     state.v2CompanyCache.set(companyId, detail);
 
@@ -2367,7 +2511,7 @@ async function loadV2CompanyDetail(security) {
       throw new Error(problem?.detail || `Codex报告返回 ${analysisResponse.status}`);
     }
   } catch (error) {
-    state.v2Errors.set(companyId, error.message || "无法读取新版详情");
+    state.v2Errors.set(companyId, error.message || "无法读取公司详情");
   } finally {
     state.v2Loading.delete(companyId);
     if (state.drawerId === security.id) {
@@ -2427,12 +2571,19 @@ function renderDrawer(security) {
     security.quote?.currentPriceCny ?? security.currentPriceCny;
   const change = security.quote?.dailyChangePct ?? security.dailyChangePct;
   const distance = security.derived?.distanceToPreferredPct;
+  const screeningSummary = screeningRecord(security);
+  const screeningDetail = screeningSummary
+    ? state.v2CompanyCache.get(security.issuerId) || screeningSummary
+    : null;
+  const dividendYield = screeningDetail?.opportunity_score?.components?.dividend_yield?.input_value;
   const historyRecord = state.historyCache.get(security.id);
   const historyLoading = state.historyLoading.has(security.id);
   const historyError = state.historyErrors.get(security.id);
-  const chartSecurity = historyRecord
-    ? { ...security, history: historyRecord.points }
-    : security;
+  const chartSecurity = {
+    ...security,
+    ...(historyRecord ? { history: historyRecord.points } : {}),
+    ...(screeningSummary ? { targetLines: [] } : {})
+  };
   const chart = priceChart(chartSecurity, { compact: compactChartLayout.matches });
   const historyBadge = historyRecord
     ? `${historyRecord.pointCount} 周 · 截至 ${historyRecord.asOf}`
@@ -2487,19 +2638,19 @@ function renderDrawer(security) {
         })}</strong>
       </div>
       <div class="drawer-metric">
-        <small>${metricHeader("距理想价v1", "legacy_distance_to_preferred_v1", isFiniteNumber(distance) ? "v1兼容值" : "数据不足")}</small>
-        <strong class="distance ${distanceClass(distance)}">${formatPct(
-          distance,
-          { signed: true }
-        )}</strong>
+        ${screeningSummary
+          ? `<small>${metricHeader("近12个月股息率", "ttm_dividend_yield", dividendYield == null ? "数据不足" : "行情快照")}</small>
+             <strong>${escapeHtml(screeningNumber(dividendYield, 2, "%"))}</strong>`
+          : `<small>目标价距离</small>
+             <strong class="distance ${distanceClass(distance)}">${formatPct(distance, { signed: true })}</strong>`}
       </div>
     </section>
     ${shareholderReturnV2Section(security)}
     <section class="chart-card">
       <div class="chart-head">
         <div>
-          <h3>近10年周线与目标线</h3>
-          <small>前复权周收盘价 · 滑动查看日期与按当前周期基数折算的股息回购率</small>
+          <h3>${screeningSummary ? "近10年价格走势" : "近10年周线与目标线"}</h3>
+          <small>${screeningSummary ? "前复权周收盘价 · 滑动查看日期与价格" : "前复权周收盘价 · 滑动查看日期与按当前周期基数折算的股息回购率"}</small>
         </div>
         <span class="badge is-idle">${escapeHtml(historyBadge)}</span>
       </div>
@@ -2511,16 +2662,18 @@ function renderDrawer(security) {
       }
       <div class="chart-legend">
         <span><i></i>周收盘</span>
-        <span><i class="watch"></i>3% 关注价</span>
-        <span><i class="preferred"></i>4% 理想价</span>
-        <span><i class="deep"></i>5% 深度价值价</span>
+        ${screeningSummary ? "" : `
+          <span><i class="watch"></i>3% 关注价</span>
+          <span><i class="preferred"></i>4% 理想价</span>
+          <span><i class="deep"></i>5% 深度价值价</span>`}
       </div>
     </section>
-    ${targetSection(security)}
-    ${valuationSection(security)}
-    ${textSection("target", "投资逻辑", security.investmentThesis)}
-    ${textSection("alert", "主要风险", security.risks)}
-    ${textSection("note", "观察笔记", security.notes)}
+    ${screeningSummary ? "" : `
+      ${targetSection(security)}
+      ${valuationSection(security)}
+      ${textSection("target", "投资逻辑", security.investmentThesis)}
+      ${textSection("alert", "主要风险", security.risks)}
+      ${textSection("note", "观察笔记", security.notes)}`}
   `;
   hydrateIcons(drawerBody);
   if (chart) {
@@ -2598,12 +2751,102 @@ function sourceSummaryMarkup(detail) {
     .slice(0, 12)
     .map((entry) => {
       const label = entry.title || entry.source_name || entry.key || "来源";
-      const value = entry.document || entry.value || entry.as_of_date || "已记录";
+      const rawValue = entry.document || entry.value || entry.as_of_date;
+      const value = typeof rawValue === "string" ? rawValue : "已核对";
       return `<li><strong>${escapeHtml(label)}</strong><span>${escapeHtml(
-        typeof value === "string" ? value : JSON.stringify(value)
+        value
       )}</span></li>`;
     })
     .join("")}</ul>`;
+}
+
+function screeningStatusLabel(value) {
+  return {
+    READY: "数据完整",
+    DATA_LIMITED: "部分数据缺失",
+    STALE: "行情待更新",
+    UNAVAILABLE: "暂不可用"
+  }[value] ?? "正在核对";
+}
+
+function screeningResearchMarkup(detail) {
+  const trigger = detail?.research_trigger || {};
+  if (!trigger.eligible) {
+    return `<p class="v2-empty">当前没有需要新增复核的信号。</p>`;
+  }
+  const opportunity = Number(detail?.opportunity_score?.value);
+  const resilience = Number(detail?.financial_resilience_score?.value);
+  const dividend = Number(
+    detail?.opportunity_score?.components?.dividend_yield?.input_value
+  );
+  const reasons = [];
+  if (Array.isArray(trigger.event_codes) && trigger.event_codes.length) {
+    reasons.push("近期出现需要核对的公司事件");
+  }
+  if (Number.isFinite(dividend) && dividend >= 4) {
+    reasons.push(`近12个月股息率为 ${dividend.toFixed(2)}%`);
+  }
+  if (Number.isFinite(opportunity) && opportunity >= 75) {
+    reasons.push(`价格机会分为 ${opportunity.toFixed(1)}`);
+  } else if (
+    Number.isFinite(opportunity) && opportunity >= 65 &&
+    Number.isFinite(resilience) && resilience >= 60
+  ) {
+    reasons.push(`价格机会分 ${opportunity.toFixed(1)}、财务韧性分 ${resilience.toFixed(1)}`);
+  }
+  return `
+    <div class="observation-summary">
+      <strong>已进入重点观察</strong>
+      <p>${escapeHtml(reasons.length ? `${reasons.join("，")}。` : "当前指标达到观察条件。")}</p>
+    </div>`;
+}
+
+function screeningSourceSummaryMarkup(detail) {
+  const source = detail?.source_summary || {};
+  const financials = source.financials || {};
+  const market = source.market || {};
+  const years = Array.isArray(financials.fiscal_years)
+    ? financials.fiscal_years.map(Number).filter(Number.isFinite)
+    : [];
+  const yearLabel = years.length
+    ? `${Math.min(...years)}—${Math.max(...years)} 年`
+    : "财年范围待确认";
+  const factCount = Number(source.official_structured_fact_count);
+  const historyPoints = Number(
+    detail?.opportunity_score?.components?.five_year_price_position?.valid_weekly_points
+  );
+  const marketTime = market.quote_timestamp || detail?.price_timestamp;
+  const warnings = [...new Set((detail?.warnings || []).map(screeningWarningLabel))];
+  return `
+    <div class="source-summary-grid">
+      <article>
+        <span>行情与估值</span>
+        <strong>${escapeHtml(sourceProviderLabel(market.provider || detail?.price?.source_summary?.source))}</strong>
+        <small>${marketTime ? `更新于 ${formatDateTime(marketTime)}` : "更新时间待确认"}</small>
+      </article>
+      <article>
+        <span>财务数据</span>
+        <strong>${escapeHtml(yearLabel)}</strong>
+        <small>${Number.isFinite(factCount) ? `${factCount} 项官方数据经过结构化核对` : sourceProviderLabel(financials.provider)}</small>
+      </article>
+      <article>
+        <span>价格历史</span>
+        <strong>${Number.isFinite(historyPoints) && historyPoints > 0 ? `${historyPoints} 个周收盘价` : "暂缺"}</strong>
+        <small>${Number.isFinite(historyPoints) && historyPoints > 0 ? "用于五年价格位置" : "未计入价格机会分"}</small>
+      </article>
+    </div>
+    ${warnings.length
+      ? `<div class="data-notes"><h5>数据局限</h5><ul>${warnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join("")}</ul></div>`
+      : '<p class="v2-empty">当前没有影响判断的数据缺口。</p>'}`;
+}
+
+function analysisConclusion(analysis) {
+  const conclusion = String(analysis?.one_sentence_conclusion || "").trim();
+  if (!conclusion) return "暂无一句话结论。";
+  if (/机械触发|触发有效性|确定性研究触发|INITIAL_TRIGGER|\bV[12]_/.test(conclusion)) {
+    return `当前建议${analysisVerdictLabel(analysis.verdict)}，风险水平${analysisRiskLabel(analysis.risk_overlay)}。`;
+  }
+  return conclusion;
 }
 
 function v2AssessmentMarkup(detail) {
@@ -2637,120 +2880,88 @@ function codexReportMarkup(security, detail) {
   if (loading && !hasLoaded) return '<p class="v2-empty">正在读取已发布报告…</p>';
   if (error) return `<p class="v2-error">${escapeHtml(error)}；页面继续保留上一次合法状态。</p>`;
   if (!analysis) {
-    return `<p class="v2-empty">${escapeHtml(analysisStatusLabel(status))}。FastAPI 不会在请求中等待或调用 Codex。</p>`;
+    return `<p class="v2-empty">${escapeHtml(analysisStatusLabel(status))}，暂时没有可展示的风险复核。</p>`;
   }
+  const risks = Array.isArray(analysis.top_risks) ? analysis.top_risks : [];
+  const sources = Array.isArray(analysis.sources) ? analysis.sources : [];
+  const sourceMarkup = sources.length
+    ? `<ul class="source-summary-list">${sources.slice(0, 6).map((source) => {
+        let href = "";
+        try {
+          const parsed = new URL(source.url);
+          if (["http:", "https:"].includes(parsed.protocol)) href = parsed.href;
+        } catch {}
+        const label = `${source.publisher || "来源"} · ${source.title || "正式披露"}`;
+        return `<li><strong>${href ? `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>` : escapeHtml(label)}</strong><span>${escapeHtml(source.supports || "")}</span></li>`;
+      }).join("")}</ul>`
+    : '<p class="v2-empty">报告没有可公开来源。</p>';
   return `
     <div class="codex-report-meta">
-      <span>任务 ${escapeHtml(analysisStatusLabel(status))}</span>
-      <span>结论 ${escapeHtml(analysis.verdict || "—")}</span>
-      <span>风险 ${escapeHtml(analysis.risk_overlay || "—")}</span>
-      <span>更新 ${escapeHtml(analysis.as_of_date || "—")}</span>
+      <span>建议：${escapeHtml(analysisVerdictLabel(analysis.verdict))}</span>
+      <span>风险：${escapeHtml(analysisRiskLabel(analysis.risk_overlay))}</span>
+      <span>估值：${escapeHtml(analysisPriceLabel(analysis.price_assessment))}</span>
+      <span>复核日期：${escapeHtml(formatShortDate(analysis.as_of_date || status?.latest_success_at))}</span>
     </div>
-    <p class="codex-one-line">${escapeHtml(analysis.one_sentence_conclusion || "")}</p>
-    <div class="safe-markdown">${renderSafeMarkdown(analysis.report_markdown || "")}</div>
+    <p class="codex-one-line">${escapeHtml(analysisConclusion(analysis))}</p>
+    ${risks.length ? `<div class="risk-list"><h5>需要留意</h5>${risks.map((item) => `<article><strong>${escapeHtml(item.risk || String(item))}</strong>${item.monitoring_condition ? `<p>${escapeHtml(item.monitoring_condition)}</p>` : ""}</article>`).join("")}</div>` : ""}
+    <div class="analysis-sources"><h5>公开依据</h5>${sourceMarkup}</div>
   `;
+}
+
+function screeningDetailCard(label, value, note = "") {
+  return `<article class="v2-detail-card"><div class="v2-detail-card-head"><small>${escapeHtml(label)}</small></div><strong>${escapeHtml(value)}</strong>${note ? `<span>${escapeHtml(note)}</span>` : ""}</article>`;
+}
+
+function shareholderScreenV2Section(security, detail) {
+  const opportunity = detail.opportunity_score || {};
+  const resilience = detail.financial_resilience_score || {};
+  const dividend = opportunity.components?.dividend_yield || {};
+  const valuation = opportunity.components?.valuation || {};
+  const position = opportunity.components?.five_year_price_position || {};
+  return `
+    <section class="drawer-section shareholder-v2">
+      <div class="v2-source-boundary">
+        <span>公司观察</span>
+        <strong class="data-tier is-${escapeHtml(String(detail.status || "unavailable").toLowerCase())}">${escapeHtml(screeningStatusLabel(detail.status))}</strong>
+        <em class="v2-freshness">${escapeHtml(freshnessLabel(detail.price?.freshness))}</em>
+      </div>
+      <div class="v2-disclaimer">分数用于比较候选公司，不代表买入建议。缺少的数据不会按零处理。</div>
+      ${v2DetailSection("关键数据", [
+        screeningDetailCard("现价", formatPrice(Number(detail.price?.value), detail.price?.currency || security.currency), detail.price_timestamp ? `更新于 ${formatDateTime(detail.price_timestamp)}` : "更新时间待确认"),
+        screeningDetailCard("近12个月股息率", screeningNumber(dividend.input_value, 2, "%"), "来自最新行情快照"),
+        screeningDetailCard("当前估值", screeningValuation(detail), valuation.metric === "PB" ? "使用市净率" : "使用市盈率"),
+        screeningDetailCard("五年价格位置", screeningPricePosition(detail), position.valid_weekly_points ? `${position.valid_weekly_points} 个周收盘价` : "价格历史暂缺"),
+      ])}
+      ${v2DetailSection("筛选结果", [
+        screeningDetailCard("价格机会分", screeningNumber(opportunity.value), `已覆盖 ${screeningNumber(Number(opportunity.coverage) * 100, 0, "%")} 的价格指标`),
+        screeningDetailCard("财务韧性分", screeningNumber(resilience.value), `${resilience.profile === "FINANCIAL" ? "金融公司" : "非金融公司"}口径 · 覆盖 ${screeningNumber(Number(resilience.coverage) * 100, 0, "%")}`),
+      ])}
+      <section class="v2-detail-group">
+        <h4>观察理由</h4>
+        ${screeningResearchMarkup(detail)}
+      </section>
+      <section class="v2-detail-group">
+        <h4>数据依据</h4>
+        ${screeningSourceSummaryMarkup(detail)}
+      </section>
+      <section class="v2-detail-group codex-analysis-section">
+        <div class="v2-source-boundary"><span>风险复核</span><small>基于公开披露，不参与评分</small></div>
+        ${codexReportMarkup(security, detail)}
+      </section>
+    </section>`;
 }
 
 function shareholderReturnV2Section(security) {
   const summary = security.shareholderReturnV2;
-  if (!summary) {
-    return `
-      <section class="drawer-section shareholder-v2">
-        <h3><span data-icon="database"></span> 股东回报 v2</h3>
-        <p>新版结构化数据尚未发布；继续显示标记为 v1 的旧口径，不混合计算。</p>
-      </section>
-    `;
-  }
   const companyId = security.issuerId;
-  const detail = state.v2CompanyCache.get(companyId) || summary;
-  const statusText = dataTierLabel(detail.data_tier);
-  const vetoes = Array.isArray(detail.veto_flags) ? detail.veto_flags : [];
-  const coverage = detail.coverage_adapter || {};
-  const validationMessages = [
-    ...(detail.validation_errors || []),
-    ...(detail.blocked_update?.errors || [])
-  ];
-  const securityPrice = detail.security_metrics?.[security.id]?.price_at_4pct;
-  const securityPriceCard = `
-    <article class="v2-detail-card">
-      <div class="v2-detail-card-head"><small>证券层4%价格</small>${metricInfoButton(
-        "security_price_at_4pct",
-        securityPrice?.reason || securityPrice?.status || statusText
-      )}</div>
-      <strong>${escapeHtml(publishedDisplay(securityPrice))}</strong>
-      <span>经股份权利与币种校验后计算</span>
-    </article>`;
+  const detail = state.v2CompanyCache.get(companyId) || summary || {};
+  if (detail?.schema_version === "shareholder-screen-v2") {
+    return shareholderScreenV2Section(security, detail);
+  }
   return `
     <section class="drawer-section shareholder-v2">
-      <div class="v2-source-boundary">
-        <span>自动计算</span>
-        <strong class="data-tier is-${escapeHtml(String(detail.data_tier || "missing").toLowerCase())}">${escapeHtml(
-          statusText
-        )}</strong>
-        <em class="v2-freshness">${escapeHtml(freshnessLabel(detail.freshness))}</em>
-        <small>${escapeHtml(detail.calculation_version || "shareholder-return-v2")}</small>
-      </div>
-      <div class="v2-disclaimer">
-        该系统用于筛选和风险研究，不构成收益保证。CR10 是保守情景估算基准，不是锁定收益。Codex 报告是定性风险研究，不替代结构化财务数据。
-      </div>
-      <section class="v2-detail-group">
-        <h4>统一数据评估</h4>
-        ${v2AssessmentMarkup(detail)}
-      </section>
-      ${v2DetailSection("当前估值与4%位置", [
-        v2DetailMetricCard(detail, "selected_security_equivalent_value"),
-        v2DetailMetricCard(detail, "sustainable_shareholder_yield"),
-        v2DetailMetricCard(detail, "conservative_return_10y"),
-        securityPriceCard,
-      ])}
-      <section class="v2-detail-group">
-        <h4>股东分配历史</h4>
-        ${distributionHistoryMarkup(detail)}
-        <div class="v2-detail-grid">${[
-          v2DetailMetricCard(detail, "recent_2y_distribution"),
-          v2DetailMetricCard(detail, "median_5y_distribution"),
-          v2DetailMetricCard(detail, "winsorized_10y_distribution"),
-          v2DetailMetricCard(detail, "historical_conservative_distribution"),
-        ].join("")}</div>
-      </section>
-      ${v2DetailSection(
-        "现金流或资本覆盖",
-        [
-          v2DetailMetricCard(detail, "sustainable_distribution"),
-          v2DetailMetricCard(detail, "fcf_capacity"),
-          v2DetailMetricCard(detail, "coverage_ratio"),
-          v2DetailMetricCard(detail, "balance_sheet_risk_indicator"),
-        ],
-        `行业适配器：${coverage.name || "等待识别"}；状态：${coverage.status || "数据不足"}${
-          coverage.caveats?.length ? `；${coverage.caveats.join("；")}` : ""
-        }`
-      )}
-      ${v2DetailSection("十年保守回报", [
-        v2DetailMetricCard(detail, "organic_growth"),
-        v2DetailMetricCard(detail, "conservative_growth"),
-        v2DetailMetricCard(detail, "valuation_adjustment"),
-        v2DetailMetricCard(detail, "conservative_return_10y"),
-      ])}
-      ${v2DetailSection("自动推荐指数", [
-        v2DetailMetricCard(detail, "return_score", { score: true }),
-        v2DetailMetricCard(detail, "payout_quality", { score: true }),
-        v2DetailMetricCard(detail, "business_durability", { score: true }),
-        v2DetailMetricCard(detail, "governance_capital_allocation", { score: true }),
-        v2DetailMetricCard(detail, "recommendation_index", { score: true }),
-      ], `分类 ${detail.classification || "—"} · ${returnTypeLabel(detail.return_type)}`)}
-      ${v2DetailSection("入手风险指数", [
-        v2DetailMetricCard(detail, "entry_risk_index", { score: true }),
-      ], vetoes.length ? `未解决否决项：${vetoes.map((flag) => flag.message_zh || flag.code).join("；")}` : "未触发结构化否决项。")}
-      <section class="v2-detail-group">
-        <h4>数据质量和来源</h4>
-        <p>${escapeHtml(validationMessages.join("；") || "结构化校验未报告错误。")}</p>
-        <p>指标口径、代理值和默认值均随记录公开；未知值保持为空，不以0冒充。</p>
-        ${sourceSummaryMarkup(detail)}
-      </section>
-      <section class="v2-detail-group codex-analysis-section">
-        <div class="v2-source-boundary"><span>Codex 定性分析</span><small>系统门槛≥5家后才创建任务；不参与自动评分</small></div>
-        ${codexReportMarkup(security, detail)}
-      </section>
+      <h3><span data-icon="database"></span> 公司观察</h3>
+      <p>当前筛选数据暂不可用，只显示基础行情信息。</p>
     </section>
   `;
 }

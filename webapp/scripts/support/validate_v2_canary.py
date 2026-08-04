@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail closed unless a v2.1 company index passes the activation gate."""
+"""Fail closed unless the v2.2 screening index passes global approval."""
 
 from __future__ import annotations
 
@@ -32,9 +32,7 @@ def main() -> int:
     try:
         summary = validate_activation_canary(
             companies,
-            approved_company_ids=reviews.get("approved_company_ids", []),
-            expected_company_count=int(reviews.get("expected_company_count", 67)),
-            minimum_scored_companies=int(reviews.get("minimum_scored_companies", 5)),
+            approval=reviews,
         )
     except V2ContractError as error:
         print(f"CANARY_REJECTED: {error}", file=sys.stderr)

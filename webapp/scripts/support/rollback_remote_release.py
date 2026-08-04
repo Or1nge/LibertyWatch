@@ -1,13 +1,27 @@
 #!/usr/bin/env python3
 """Verify and atomically reactivate an existing remote data release."""
 
-from __future__ import annotations
-
 import argparse
 import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
+
+
+def unlink_if_exists(path: Path) -> None:
+    try:
+        path.unlink()
+    except FileNotFoundError:
+        pass
+
+
+def normalize_public_permissions(root: Path) -> None:
+    root.chmod(0o755)
+    for path in root.rglob("*"):
+        if path.is_dir():
+            path.chmod(0o755)
+        elif path.is_file():
+            path.chmod(0o644)
 
 
 def safe_relative(value: str) -> Path:
@@ -29,7 +43,7 @@ def verify(release: Path, channel: str) -> None:
     manifest = json.loads((release / "manifest.json").read_text(encoding="utf-8"))
     if manifest.get("channel") != channel:
         raise ValueError("release channel mismatch")
-    expected: set[str] = set()
+    expected = set()
     for item in manifest.get("files", []):
         relative = safe_relative(str(item["path"]))
         target = release / relative
@@ -40,7 +54,7 @@ def verify(release: Path, channel: str) -> None:
         ):
             raise ValueError(f"release verification failed: {item['path']}")
         expected.add(relative.as_posix())
-    checksum_paths: set[str] = set()
+    checksum_paths = set()
     for line in (release / "SHA256SUMS").read_text(encoding="utf-8").splitlines():
         try:
             digest, name = line.split("  ", 1)
@@ -72,9 +86,10 @@ def main() -> int:
         raise SystemExit("unsafe release ID")
     release = args.channel_root / "releases" / args.release_id
     verify(release, args.channel)
+    normalize_public_permissions(release)
     temporary = args.channel_root / f".current.{os.getpid()}.tmp"
-    temporary.unlink(missing_ok=True)
-    temporary.symlink_to(release)
+    unlink_if_exists(temporary)
+    temporary.symlink_to(Path("releases") / args.release_id)
     os.replace(temporary, args.channel_root / "current")
     print(args.release_id)
     return 0

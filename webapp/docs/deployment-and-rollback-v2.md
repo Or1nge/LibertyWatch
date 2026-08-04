@@ -1,5 +1,10 @@
 # 部署、同步、故障排查与回滚
 
+> 当前生产开关为`SHAREHOLDER_SCREEN_ENABLED=false|true`与
+> `CODEX_ANALYSIS_MODE=OFF|INTERNAL|PUBLIC`，默认分别为`false`和`OFF`；旧
+> `SHAREHOLDER_RETURN_V2_ENABLED=true`不会自动迁移。当前canary、安装态smoke和
+> 激活顺序见[`shareholder-screen-v2.2.md`](shareholder-screen-v2.2.md)。
+
 ## Linux 首次安装
 
 先检查 `.env.example`，再执行：
@@ -44,6 +49,10 @@ sudo -u <LIBERTY_SERVICE_USER> env HOME=<service-home> ssh -G <ALI_SSH_HOST> >/d
 SHAREHOLDER_V2_QUOTE_SNAPSHOT=/var/lib/liberty/shareholder-v2/inputs/latest_snapshot.json
 ```
 
+同时重新安装仓库中的`systemd/liberty-quote-push.service`并执行
+`systemctl --user daemon-reload`；该单元只对白名单中的整个`inputs`目录开放写入，
+因为原子替换需要先在目标目录创建临时文件，不能只开放现有JSON文件。
+
 然后按安装器打印的命令执行一次 `migrate --apply`。占位迁移不会改写生产原始
 数据；回填来源账本后才可能产生 VALID 公司。
 
@@ -51,10 +60,13 @@ SHAREHOLDER_V2_QUOTE_SNAPSHOT=/var/lib/liberty/shareholder-v2/inputs/latest_snap
 
 | 变量 | 用途 |
 |---|---|
-| `SHAREHOLDER_RETURN_V2_ENABLED` | FastAPI v2功能开关；默认`false`，只有明确切换时设为`true` |
+| `SHAREHOLDER_SCREEN_ENABLED` | 67家公司复合筛选公开开关；默认`false` |
+| `CODEX_ANALYSIS_MODE` | `OFF`不建任务；`INTERNAL`只生成本地release；`PUBLIC`允许Ali展示 |
 | `SHAREHOLDER_V2_CANARY_INDEX` | 显式开启v2时接受激活检查的本地`companies.json`；默认指向本地structured current |
 | `SHAREHOLDER_V2_LOCAL_ROOT` / `STAGING_DIR` | Linux数据与标准化输入 |
 | `SHAREHOLDER_V2_QUOTE_SNAPSHOT` | 行情快变量交接文件 |
+| `SHAREHOLDER_V2_WEEKLY_HISTORY` | 前复权周线输入；缺失标的保持`DATA_LIMITED` |
+| `SHAREHOLDER_V2_FUTU_FINANCIAL_EVIDENCE` | 生产侧Futu详细财务不可变证据目录 |
 | `ANALYSIS_JOB_DB` | SQLite任务库 |
 | `CODEX_BINARY` / `CODEX_TIMEOUT_SECONDS` | 固定CLI与超时 |
 | `CODEX_GLOBAL_CONCURRENCY` | 默认1 |
@@ -88,7 +100,7 @@ sudo -u <LIBERTY_SERVICE_USER> /opt/liberty/shareholder-v2/current/.venv/bin/pyt
 
 `shareholder-data-pipeline.timer` 工作日每2分钟更新快变量，慢输入哈希未变时使用
 缓存；成功后触发 dispatcher。worker 常驻但不进入 FastAPI 请求线程。publisher
-每5分钟只同步变更或等待重试的 channel。
+每2分钟只同步变更或等待重试的 channel。
 
 本地诊断：
 
@@ -153,12 +165,14 @@ set +a
 部署脚本先跑全量测试，远端Compose健康和公网API检查均通过后才切换代码
 `current`；失败自动恢复上一代码release。
 
-当且仅当显式设置`SHAREHOLDER_RETURN_V2_ENABLED=true`时，部署还会在任何远端写入
-前运行激活canary，并在Ali回环与公网API重复验证：release必须为v2.1
-`VALID_RELEASE`，恰有67条合法记录，至少5家公司同时发布RI/ERI，所有分数为
-0—100有限数，且全部可评分公司已列入
-`config/shareholder_v2_activation_reviews.json`。当前审批清单为空，因此误设
-`true`会在本地直接失败；`false`的常规v1代码dry-run不受影响。
+当且仅当显式设置`SHAREHOLDER_SCREEN_ENABLED=true`时，部署还会在任何远端写入
+前运行激活canary，并在Ali回环与公网API重复验证：release必须为v2.2
+`shareholder-screen-v2`，恰有67条合法记录，两类分数均为0—100有限数，manifest
+与逐文件SHA均通过。全局审批还必须在
+`config/shareholder_v2_activation_reviews.json`中绑定准确的计算版本、policy SHA、
+public contract SHA、批准时间与复核人。当前审批文件默认关闭，因此误设`true`会在
+本地直接失败；旧`SHAREHOLDER_RETURN_V2_ENABLED`不会开启新版。Codex仍由独立的
+`CODEX_ANALYSIS_MODE=OFF|INTERNAL|PUBLIC`控制。
 
 ## 回滚
 

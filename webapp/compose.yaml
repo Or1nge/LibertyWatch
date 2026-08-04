@@ -13,7 +13,8 @@ services:
       DEMO_WATCHLIST_FILE: /app/config/demo-watchlist.json
       SNAPSHOT_FILE: /app/runtime/latest_snapshot.json
       HISTORY_FILE: /app/runtime/weekly_history.json
-      SHAREHOLDER_RETURN_V2_ENABLED: "${SHAREHOLDER_RETURN_V2_ENABLED:-false}"
+      SHAREHOLDER_SCREEN_ENABLED: "${SHAREHOLDER_SCREEN_ENABLED:-false}"
+      CODEX_ANALYSIS_MODE: "${CODEX_ANALYSIS_MODE:-OFF}"
       SHAREHOLDER_V2_STRUCTURED_ROOT: /app/runtime/shareholder-v2/structured
       SHAREHOLDER_V2_ANALYSIS_ROOT: /app/runtime/shareholder-v2/analysis
       METRIC_DEFINITIONS_V2_FILE: /app/config/metric_definitions_v2.json

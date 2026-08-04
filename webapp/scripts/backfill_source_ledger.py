@@ -177,7 +177,7 @@ def command_collect_futu(args: argparse.Namespace) -> int:
     plan = {
         "mode": "apply-evidence" if args.apply else "dry-run",
         "target_count": len(selected),
-        "calls_planned": len(selected) * 2,
+        "calls_planned": len(selected) * 3,
         "max_full_years": args.max_years,
         "output_root": str(Path(args.output_root)),
         "writes_production_snapshots": False,
@@ -204,7 +204,11 @@ def command_collect_futu(args: argparse.Namespace) -> int:
             fetched_at = datetime.now(timezone.utc)
             statements: dict[str, Any] = {}
             errors: dict[str, str] = {}
-            for statement_name, statement_type in (("cash_flow", 3), ("balance_sheet", 2)):
+            for statement_name, statement_type in (
+                ("income_statement", 1),
+                ("cash_flow", 3),
+                ("balance_sheet", 2),
+            ):
                 try:
                     statements[statement_name] = _query_statement(
                         context,

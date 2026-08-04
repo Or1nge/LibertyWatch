@@ -2,6 +2,54 @@
 
 ## 2026-08-04
 
+- 重做公开公司详情：用户界面不再展示V1/V2迁移标签、内部触发码、英文状态枚举、
+  版本号或来源JSON；页面改为“关键数据、筛选结果、观察理由、数据依据、风险
+  复核”的阅读顺序，并放大桌面端详情文字。公开筛选删除旧目标价字段及其研究触发，
+  Codex提示词升至`risk-review-v2.0.2`，要求结论先行、自然中文和更短的用户报告。
+- 用户确认此前OpenD异常根因为外部IP问题；服务恢复后，生产collector从21:34起连续
+  取得67/67行情并原子更新本机v1快照、v2交接快照和阿里共享快照，三者SHA一致。
+  修复用户级`liberty-quote-push.service`在`ProtectSystem=strict`下未对白名单
+  `/var/lib/liberty/shareholder-v2/inputs`开放原子临时文件写入的问题；timer自动复跑
+  成功，随后结构化release通过67家公司、双分数、Schema、manifest和零非有限数校验。
+  截至远端验收已有5家Codex分析通过公开来源门禁并在公网返回同一analysis ID；
+  本地/阿里analysis release `20260804T134717Z-6c205b000fd5`的manifest与索引SHA一致。
+- 获得批量外发与持续触发授权后，生产开关已切换为
+  `SHAREHOLDER_SCREEN_ENABLED=true`、`CODEX_ANALYSIS_MODE=PUBLIC`；当前31家触发
+  公司的冻结`research_bundle`均以`INITIAL_TRIGGER_BACKLOG`入队。首个苏泊尔
+  `SZ002032`分析使用`gpt-5.6-sol`/`xhigh`/`risk-review-v2.0.1`通过Schema和公开来源
+  门禁，8个冻结输入文件的审计副本逐字节一致；analysis release
+  `20260804T125207Z-971dae6b1eae`在阿里激活，本地/远端manifest及公司JSON SHA一致，
+  公网API返回同一analysis ID。其余任务由并发1的常驻worker持续处理。
+- 修复真实不可变安装环境暴露的三处worker兼容问题：Codex CLI显式跳过安装release
+  的Git仓库检查；冻结输入归档不再复制setgid权限元数据；systemd只对白名单中的
+  `published/analysis`开放写入并继续隔离structured发布。完整Python回归305项、前端
+  14项及systemd unit校验通过。
+- 生产安装、影子计算与阿里验收完成：本机正式结构化release
+  `20260804T121601Z-3c07e8154f9b`已原子同步，阿里Web release
+  `20260804T121500Z-fd1086718d`为healthy；公网逐一验证67个公司详情均返回200，
+  67/67 watchlist enrichment、双分数、全局canary、manifest/SHA、零非有限数和零计算
+  失败全部通过。当时安全门禁为`SHAREHOLDER_SCREEN_ENABLED=true`、
+  `CODEX_ANALYSIS_MODE=OFF`，数据与publisher timer已启用，Codex worker在批量外发
+  获得单独授权前保持disabled。修复了阿里Python 3.6激活助手、公开release权限、
+  bind mount可移植相对链接、Web镜像漏装`liberty_v2`及远端canary解释器边界。
+- 海尔智家`A600690`真实INTERNAL Codex smoke完成模型推理、本地latest和analysis
+  release；真实接口暴露并修复Structured Outputs要求枚举/常量显式类型、且不接受
+  `format: uri`的问题。事后审计发现模型把4个冻结输入伪装为`invalid.local`来源，
+  因此新增公开来源网址门禁并将Prompt补丁版本升至`risk-review-v2.0.1`；原成功
+  产物保留审计。获单独授权后的v2.0.1真实smoke一次成功，11条来源均为巨潮、
+  上交所、国家统计局或商务部公开网址，禁用占位域名为0，latest与release校验通过。
+- LibertyWatch V2公开计算升级为`shareholder-screen-v2.2.0`：67家公司全部进入
+  价格机会分与财务韧性分双支柱筛选，缺失组成项通过coverage向50收缩；旧
+  SEEV/SSY/CR10/RI/ERI退出公开主路径但保留legacy/internal回放。
+- Futu详细财务不可变证据扩展到67/67家并纳入利润表；真实dry-run为价格机会分
+  67/67、财务韧性分67/67、READY 11、DATA_LIMITED 56、触发候选31、零计算失败，
+  schema、manifest、SHA及非有限数检查全部通过。56家DATA_LIMITED来自现有周线
+  配额只覆盖11家，不以伪造数据补齐。
+- Codex升级为逐公司触发的`risk-review-v2.0.0`，任务冻结`research_bundle.json`
+  及精确SHA文件集；新增OFF/INTERNAL/PUBLIC三态开关，成功报告立即形成本地
+  analysis release，publisher重试周期缩短到2分钟。安装器补齐资本结构配置，并
+  在切换`current`前运行incoming health和67家公司覆盖smoke。
+
 - v2.1只读API增加发布契约校验，前端直接展示公司层级、置信度、时效、口径、警告
   与阻断项。新增版本化人工审批清单和三段激活canary；67条、至少5家真实RI/ERI、
   分数有限且全部人工审批缺一不可，Codex dispatch也在5家前关闭。

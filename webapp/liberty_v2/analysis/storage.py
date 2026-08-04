@@ -31,6 +31,15 @@ def _atomic_write(path: Path, content: bytes) -> None:
     os.replace(temporary, path)
 
 
+def _copy_input_files_without_metadata(source: Path, destination: Path) -> None:
+    """Archive verified inputs without copying setgid metadata into the sandbox."""
+    destination.mkdir(parents=False, exist_ok=False)
+    for item in sorted(source.iterdir(), key=lambda path: path.name):
+        if item.is_symlink() or not item.is_file():
+            raise AnalysisStorageError("analysis input archive may only contain regular files")
+        shutil.copyfile(item, destination / item.name)
+
+
 class AnalysisStorage:
     def __init__(self, output_root: Path, jobs_root: Path) -> None:
         self.output_root = output_root
@@ -56,7 +65,7 @@ class AnalysisStorage:
             shutil.rmtree(staging)
         staging.mkdir(parents=True, exist_ok=False)
         input_dir = self.jobs_root / job.job_id / "input"
-        shutil.copytree(input_dir, staging / "input")
+        _copy_input_files_without_metadata(input_dir, staging / "input")
         final_bytes = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True, allow_nan=False).encode("utf-8") + b"\n"
         report_bytes = str(payload["report_markdown"]).encode("utf-8")
         _atomic_write(staging / "final.json", final_bytes)
