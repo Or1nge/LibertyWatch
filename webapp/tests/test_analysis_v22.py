@@ -17,6 +17,7 @@ from liberty_v2.constants import CALCULATION_VERSION, PROMPT_VERSION
 PROJECT = Path(__file__).resolve().parents[1]
 FAKE_CODEX = PROJECT / "scripts" / "support" / "fake_codex.py"
 SCHEMA_V2 = PROJECT / "analysis" / "schema" / "risk_analysis_output_v2.json"
+WORKER_UNIT = PROJECT / "systemd" / "shareholder-codex-worker.service"
 
 
 def screening_company() -> dict:
@@ -51,6 +52,15 @@ def test_worker_command_supports_immutable_non_git_release(tmp_path: Path) -> No
     assert command[command.index("exec") + 1] == "--skip-git-repo-check"
     assert command[command.index("--sandbox") + 1] == "read-only"
     assert command[command.index("--ask-for-approval") + 1] == "never"
+
+
+def test_worker_unit_can_publish_only_analysis_channel() -> None:
+    unit = WORKER_UNIT.read_text(encoding="utf-8")
+    read_write = next(line for line in unit.splitlines() if line.startswith("ReadWritePaths="))
+    inaccessible = next(line for line in unit.splitlines() if line.startswith("InaccessiblePaths="))
+    assert "/var/lib/liberty/shareholder-v2/published/analysis" in read_write.split()
+    assert "-/var/lib/liberty/shareholder-v2/published/structured" in inaccessible.split()
+    assert "-/var/lib/liberty/shareholder-v2/published" not in inaccessible.split()
 
 
 def test_success_archive_does_not_copy_setgid_input_metadata(tmp_path: Path) -> None:

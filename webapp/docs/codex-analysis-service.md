@@ -19,9 +19,9 @@ approval = never
 `liberty_v2/analysis/worker.py` 使用 `subprocess.Popen` 参数数组，Prompt 经 stdin
 传入，禁用 shell，超时终止整个进程组。worker默认复用安装时选定的现有服务
 用户，不要求另建 `liberty-codex`；另建账户仅是可选加固。无论使用哪个用户，
-systemd都把项目代码设为只读，只开放分析、状态和选定CODEX_HOME，并隐藏变化中
-的inputs/staging/cache/snapshots/published目录。CLI仍使用ephemeral、read-only
-sandbox、PrivateTmp和输出白名单。
+systemd都把项目代码设为只读，只开放分析任务/输出、analysis发布、状态和选定
+CODEX_HOME，并隐藏变化中的inputs/staging/cache/snapshots、structured发布与
+observations目录。CLI仍使用ephemeral、read-only sandbox、PrivateTmp和输出白名单。
 CLI子进程只继承认证、代理、CA、locale和临时目录白名单，不继承发布/数据库变量。
 成功归档按字节复制已校验的冻结输入，不继承源目录的setgid等权限元数据，以兼容
 systemd的`RestrictSUIDSGID`加固；归档内容仍由冻结输入SHA和最终产物SHA校验。
