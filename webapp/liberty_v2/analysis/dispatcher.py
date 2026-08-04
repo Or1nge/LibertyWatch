@@ -143,7 +143,7 @@ class AnalysisDispatcher:
             events = set(map(str, (events_by_company or {}).get(company_id, ())))
             trigger_type = str(trigger.get("trigger_type") or "")
             urgent = bool(events or trigger.get("event_codes"))
-            order = 0 if urgent else 1 if trigger_type == "V1_TARGET_PRICE_REACHED" else 2 if trigger_type == "DIVIDEND_YIELD_TTM" else 3
+            order = 0 if urgent else 1 if trigger_type == "DIVIDEND_YIELD_TTM" else 2
             return (order, -number(record, "opportunity_score"), -number(record, "financial_resilience_score"), company_id)
 
         results: list[dict[str, Any]] = []

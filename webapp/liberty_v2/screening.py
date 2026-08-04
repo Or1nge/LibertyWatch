@@ -497,7 +497,6 @@ def research_trigger(
     resilience: Mapping[str, Any],
     dividend_yield_ttm_pct: Any,
     price_is_fresh: bool,
-    v1_target_reached: bool = False,
     events: Sequence[str] = (),
     policy: Mapping[str, Any],
 ) -> dict[str, Any]:
@@ -510,9 +509,6 @@ def research_trigger(
     if urgent_events:
         trigger_type = urgent_events[0]
         reasons.append("重大事件：" + "、".join(urgent_events))
-    if v1_target_reached:
-        trigger_type = trigger_type or "V1_TARGET_PRICE_REACHED"
-        reasons.append("达到已有且可追溯的v1理想目标价")
     if dividend_value is not None and dividend_value >= finite_decimal(policy["dividend_yield_pct_min"]):
         trigger_type = trigger_type or "DIVIDEND_YIELD_TTM"
         reasons.append("Futu TTM股息率达到4%")

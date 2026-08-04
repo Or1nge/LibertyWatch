@@ -178,6 +178,12 @@ export function clamp(value, minimum, maximum) {
 }
 
 function getSortValue(security, key) {
+  const screening = security.shareholderReturnV2?.schema_version === "shareholder-screen-v2"
+    ? security.shareholderReturnV2
+    : null;
+  const sortableNumber = (value) => value === null || value === undefined || value === ""
+    ? Number.NaN
+    : Number(value);
   switch (key) {
     case "name":
       return security.name;
@@ -200,8 +206,18 @@ function getSortValue(security, key) {
       );
     case "updated":
       return security.quote?.lastUpdatedAt ?? security.lastUpdate;
+    case "opportunity":
+      return sortableNumber(screening?.opportunity_score?.value);
+    case "resilience":
+      return sortableNumber(screening?.financial_resilience_score?.value);
+    case "dividend":
+      return sortableNumber(
+        screening?.opportunity_score?.components?.dividend_yield?.input_value
+      );
     default:
-      return security.derived?.distanceToPreferredPct;
+      return screening
+        ? sortableNumber(screening.opportunity_score?.value)
+        : security.derived?.distanceToPreferredPct;
   }
 }
 
@@ -211,9 +227,11 @@ export function sortSecurities(securities, sortKey = "distance", direction = "as
     const leftValue = getSortValue(left, sortKey);
     const rightValue = getSortValue(right, sortKey);
     const leftMissing =
-      leftValue === null || leftValue === undefined || leftValue === "";
+      leftValue === null || leftValue === undefined || leftValue === "" ||
+      (typeof leftValue === "number" && !Number.isFinite(leftValue));
     const rightMissing =
-      rightValue === null || rightValue === undefined || rightValue === "";
+      rightValue === null || rightValue === undefined || rightValue === "" ||
+      (typeof rightValue === "number" && !Number.isFinite(rightValue));
     if (leftMissing && rightMissing) {
       return String(left.name).localeCompare(String(right.name), "zh-CN");
     }

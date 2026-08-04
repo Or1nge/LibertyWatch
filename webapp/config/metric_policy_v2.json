@@ -3,7 +3,7 @@
   "policy_version": "shareholder-screen-policy-v2.2.0",
   "calculation_version": "shareholder-screen-v2.2.0",
   "metric_definition_version": "shareholder-screen-v2.2.0",
-  "prompt_version": "risk-review-v2.0.1",
+  "prompt_version": "risk-review-v2.0.2",
   "output_schema_version": "2.0",
   "base_currency": "CNY",
   "thresholds": {

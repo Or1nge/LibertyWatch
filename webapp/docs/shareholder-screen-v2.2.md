@@ -4,7 +4,8 @@
 
 公开schema为`shareholder-screen-v2`，计算与指标定义版本均为
 `shareholder-screen-v2.2.0`，policy为`shareholder-screen-policy-v2.2.0`。
-Codex prompt补丁版本为`risk-review-v2.0.1`，新增公开来源网址门禁。
+Codex prompt补丁版本为`risk-review-v2.0.2`，除公开来源网址门禁外，要求结论先行、
+自然中文并禁止把任务类型、字段名、版本号或英文状态码写进用户正文。
 release必须恰有67家公司，状态仅为`READY`、`DATA_LIMITED`、`STALE`或
 `UNAVAILABLE`。缺失字段保持`null`；只有身份冲突、无合法价格、结构损坏或非有限
 值会形成公司级致命项。
@@ -21,19 +22,20 @@ final_score = 50 + coverage * (raw_score - 50)
 ```
 
 完整分段、阈值和来源字段在`config/metric_policy_v2.json`。旧SEEV、SSY、CR10、
-RI和ERI只保留在legacy/internal代码与注册表条目中，不进入v2.2公开门禁。
+RI和ERI只保留在legacy/internal代码与注册表条目中，不进入当前公开页面。
 
 ## Codex研究
 
 确定性触发包括：价格机会分至少75；价格机会分至少65且财务韧性至少60；Futu
-TTM股息率至少4%；达到可追溯v1理想价；或重大事件。首次启用用
+TTM股息率至少4%；或重大事件。旧目标价不再参与触发。首次启用用
 `initial-backlog`补建当前已满足条件的公司。纯价格触发冷却7日，普通分析成功冷却
 30日，重大事件绕过普通冷却，同公司锁和全局并发1保留。
 
 每个任务输入目录精确包含公司快照、指标定义、触发、上一成功分析、来源索引、
-prompt元数据、`research_bundle.json`和逐文件SHA。新版Schema只要求价格判断、触发
+prompt元数据、`research_bundle.json`和逐文件SHA。Schema要求价格判断、触发
 有效性、现金回报可持续性、机会或陷阱、最终结论、风险、来源与安全Markdown；
-Codex不能修改任何量化分数或财务事实。
+Codex不能修改任何量化分数或财务事实。公开详情只展示自然语言结论、主要风险、
+下一次复核条件和公开来源；原始任务字段与完整JSON不进入页面。
 
 ## 安全开关与安装
 

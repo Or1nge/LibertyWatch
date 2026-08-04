@@ -21,15 +21,12 @@ test("safe markdown only links http and https with safe attributes", () => {
 test("metric explanations and v2 detail are accessible display-only UI", () => {
   const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
   for (const label of [
-    "当前估值与4%位置",
-    "统一数据评估",
-    "股东分配历史",
-    "现金流或资本覆盖",
-    "十年保守回报",
-    "自动推荐指数",
-    "入手风险指数",
-    "数据质量和来源",
-    "Codex 定性分析",
+    "公司观察",
+    "关键数据",
+    "筛选结果",
+    "观察理由",
+    "数据依据",
+    "风险复核",
   ]) {
     assert.match(app, new RegExp(label));
   }
@@ -38,11 +35,27 @@ test("metric explanations and v2 detail are accessible display-only UI", () => {
   assert.match(app, /focusin/);
   assert.match(app, /metricInfoPopover\.addEventListener\("focusin"/);
   assert.match(app, /event\.key === "Escape"/);
-  assert.doesNotMatch(app, /innerHTML\s*=\s*analysis\.report_markdown/);
-  assert.match(app, /dataTierLabel/);
+  const currentDetail = app.slice(
+    app.indexOf("function screeningResearchMarkup"),
+    app.indexOf("function shareholderReturnV2Section")
+  );
+  assert.doesNotMatch(currentDetail, /JSON\.stringify/);
+  assert.doesNotMatch(currentDetail, /trigger_type|calculation_version/);
+  assert.doesNotMatch(currentDetail, /analysis\.report_markdown/);
+  assert.match(app, /screeningStatusLabel/);
   assert.match(app, /freshnessLabel/);
-  assert.match(app, /metricBasisLabel/);
-  assert.doesNotMatch(app, /v2DetailMetricCard\(detail, "buyback_persistence_factor"/);
+  assert.match(app, /screeningWarningLabel/);
+  assert.match(app, /function analysisConclusion/);
+  assert.match(app, /INITIAL_TRIGGER/);
+});
+
+test("company detail uses readable desktop type and responsive source cards", () => {
+  const css = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
+  assert.match(css, /\.detail-drawer\s*\{[^}]*width:\s*min\(760px, 96vw\)/s);
+  assert.match(css, /\.drawer-section p,[\s\S]*?font-size:\s*14px/s);
+  assert.match(css, /\.v2-detail-card-head > small\s*\{[^}]*font-size:\s*12px/s);
+  assert.match(css, /\.source-summary-grid\s*\{[^}]*repeat\(3,/s);
+  assert.match(css, /@media \(max-width: 720px\)[\s\S]*?\.source-summary-grid\s*\{[^}]*grid-template-columns:\s*1fr/s);
 });
 
 test("every literal metric explanation entry comes from the registry", () => {

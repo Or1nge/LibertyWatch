@@ -1826,17 +1826,11 @@ def compute_company_screening_snapshot(
         profile=profile,
         policy=screening_policy["financial_resilience"],
     )
-    legacy = raw.get("legacy_metrics") if isinstance(raw.get("legacy_metrics"), Mapping) else {}
-    legacy_average = finite_decimal(legacy.get("annual_average_per_share_cny"), positive=True)
-    fx = finite_decimal(getattr(observation, "fx_to_base", None), positive=True)
-    v1_target = legacy_average / Decimal("0.04") / fx if legacy_average is not None and fx is not None else None
-    v1_target_reached = bool(price is not None and v1_target is not None and price <= v1_target)
     trigger = research_trigger(
         opportunity=opportunity,
         resilience=resilience,
         dividend_yield_ttm_pct=getattr(observation, "dividend_yield_ttm_pct", None),
         price_is_fresh=price_fresh,
-        v1_target_reached=v1_target_reached,
         events=events,
         policy=screening_policy["triggers"],
     )
@@ -1895,7 +1889,6 @@ def compute_company_screening_snapshot(
         "ttm_dividend_yield": {"value": dividend_component.get("input_value"), "status": dividend_component.get("status"), "basis": "VENDOR", "unit": "percent"},
         "valuation_anchor": valuation_component,
         "five_year_price_position": price_position,
-        "v1_preferred_price": {"value": format(v1_target.quantize(Decimal('0.0001')), 'f') if v1_target is not None else None, "status": "VALID" if v1_target is not None else "UNAVAILABLE", "basis": "LEGACY_V1", "unit": "security_currency"},
     }
     public_financial_rows = []
     for row in financial_rows:

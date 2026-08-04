@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import inspect
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -25,6 +26,7 @@ from liberty_v2.screening import (
     financial_resilience_score,
     five_year_price_position_component,
     opportunity_score,
+    research_trigger,
     valuation_component,
 )
 
@@ -71,6 +73,18 @@ def test_coverage_shrink_prevents_one_field_extreme() -> None:
         {"a": "0.40", "b": "0.35", "c": "0.25"},
     )
     assert result["coverage"] == "0.4000" and result["value"] == "70.00"
+
+
+def test_current_research_trigger_has_no_legacy_target_input() -> None:
+    assert "v1_target_reached" not in inspect.signature(research_trigger).parameters
+    result = research_trigger(
+        opportunity={"value": "60"},
+        resilience={"value": "80"},
+        dividend_yield_ttm_pct="3.5",
+        price_is_fresh=True,
+        policy=SCREENING["triggers"],
+    )
+    assert result["eligible"] is False
 
 
 def _nonfinancial_rows() -> list[dict]:
@@ -164,6 +178,9 @@ def test_research_bundle_exact_file_set_and_sha(tmp_path: Path) -> None:
     assert {path.name for path in input_dir.iterdir()} == INPUT_DOCUMENT_NAMES | {"sha256sums.json"}
     bundle = json.loads((input_dir / "research_bundle.json").read_text())
     assert bundle["input_snapshot_hash"] == digest and bundle["opportunity_score"]["value"] == "70"
+    prompt = (input_dir.parent / "rendered_prompt.md").read_text(encoding="utf-8")
+    assert "不得写“机械触发仍成立”" in prompt
+    assert "不得在正文中出现任务类型、字段名、版本号" in prompt
 
 
 def test_installer_copies_required_config_and_smokes_before_switch() -> None:
@@ -177,6 +194,12 @@ def test_installer_copies_required_config_and_smokes_before_switch() -> None:
 def test_web_image_contains_shareholder_v2_runtime() -> None:
     dockerfile = (PROJECT / "Dockerfile").read_text(encoding="utf-8")
     assert "COPY --chown=10001:10001 liberty_v2 /app/liberty_v2" in dockerfile
+
+
+def test_current_public_snapshot_does_not_publish_legacy_target_fields() -> None:
+    pipeline = (PROJECT / "liberty_v2" / "pipeline.py").read_text(encoding="utf-8")
+    assert "v1_target_reached" not in pipeline
+    assert '"v1_preferred_price"' not in pipeline
 
 
 def test_remote_canary_runs_inside_the_python_311_web_container() -> None:
