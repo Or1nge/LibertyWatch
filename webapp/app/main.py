@@ -72,6 +72,8 @@ def create_app(
     analysis_v2_root: Path | str | None = None,
     metric_definitions_path: Path | str | None = None,
     v2_enabled: bool | None = None,
+    screen_enabled: bool | None = None,
+    codex_analysis_mode: str | None = None,
     public_dir: Path | str | None = None,
     now=None,
 ) -> FastAPI:
@@ -130,10 +132,13 @@ def create_app(
             if metric_definitions_path
             else _path_from_env("METRIC_DEFINITIONS_V2_FILE", WEBAPP_ROOT / "config" / "metric_definitions_v2.json")
         ),
-        enabled=(
-            v2_enabled
-            if v2_enabled is not None
-            else _boolean_from_env("SHAREHOLDER_RETURN_V2_ENABLED", False)
+        enabled=(screen_enabled if screen_enabled is not None else v2_enabled if v2_enabled is not None else _boolean_from_env("SHAREHOLDER_SCREEN_ENABLED", False)),
+        analysis_enabled=(
+            bool(v2_enabled is True and codex_analysis_mode is None)
+            or (
+                (codex_analysis_mode or os.getenv("CODEX_ANALYSIS_MODE", "OFF")).strip().upper()
+                == "PUBLIC"
+            )
         ),
     )
     started_at = clock()
@@ -149,12 +154,12 @@ def create_app(
         try:
             published_store.initialize()
         except Exception:
-            LOGGER.exception("shareholder-return v2 initialization failed")
+            LOGGER.exception("shareholder-screen v2 initialization failed")
         yield
 
     application = FastAPI(
         title="Liberty Watch",
-        version="2.0.1",
+        version="2.2.0",
         docs_url=None,
         redoc_url=None,
         openapi_url=None,

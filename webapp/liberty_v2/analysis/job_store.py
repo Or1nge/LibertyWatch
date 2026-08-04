@@ -19,6 +19,8 @@ ANALYSIS_MODES = {
     "URGENT_VETO_REVIEW",
     "MATERIAL_CHANGE_REVIEW",
     "PERIODIC_REFRESH",
+    "PRICE_RISK_ANALYSIS",
+    "URGENT_RISK_REVIEW",
 }
 
 
@@ -240,6 +242,7 @@ class AnalysisJobStore:
                 )
                 ORDER BY
                     CASE j.analysis_mode
+                        WHEN 'URGENT_RISK_REVIEW' THEN 0
                         WHEN 'URGENT_VETO_REVIEW' THEN 0
                         WHEN 'FULL_ENTRY_REVIEW' THEN 1
                         WHEN 'MATERIAL_CHANGE_REVIEW' THEN 2

@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://liberty.invalid/schema/risk-analysis-output-v2.json",
+  "title": "LibertyWatch V2 price-risk analysis output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "prompt_version", "model", "reasoning_effort",
+    "analysis_id", "analysis_mode", "company_id", "company_name", "ticker",
+    "market", "as_of_date", "input_snapshot_hash", "calculation_version",
+    "trigger", "data_issue_detected", "data_issue_notes", "one_sentence_conclusion",
+    "price_assessment", "trigger_validity", "cash_return_sustainability",
+    "opportunity_or_trap", "verdict", "risk_overlay", "top_risks",
+    "facts_that_would_change_the_view", "next_review_triggers", "sources",
+    "report_markdown"
+  ],
+  "properties": {
+    "schema_version": {"const": "2.0"},
+    "prompt_version": {"const": "risk-review-v2.0.0"},
+    "model": {"const": "gpt-5.6-sol"},
+    "reasoning_effort": {"const": "xhigh"},
+    "analysis_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]{8,100}$"},
+    "analysis_mode": {"enum": ["PRICE_RISK_ANALYSIS", "URGENT_RISK_REVIEW", "FULL_ENTRY_REVIEW", "URGENT_VETO_REVIEW", "MATERIAL_CHANGE_REVIEW", "PERIODIC_REFRESH"]},
+    "company_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]{1,100}$"},
+    "company_name": {"type": "string", "minLength": 1, "maxLength": 160},
+    "ticker": {"type": "string", "minLength": 1, "maxLength": 40},
+    "market": {"enum": ["CN", "HK", "US", "OTHER"]},
+    "as_of_date": {"type": "string", "format": "date"},
+    "input_snapshot_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "calculation_version": {"const": "shareholder-screen-v2.2.0"},
+    "trigger": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "summary"],
+      "properties": {
+        "type": {"type": "string", "minLength": 1, "maxLength": 100},
+        "summary": {"type": "string", "minLength": 1, "maxLength": 1000}
+      }
+    },
+    "data_issue_detected": {"type": "boolean"},
+    "data_issue_notes": {"type": "array", "maxItems": 10, "items": {"type": "string", "minLength": 1, "maxLength": 600}},
+    "one_sentence_conclusion": {"type": "string", "minLength": 1, "maxLength": 500},
+    "price_assessment": {"enum": ["NOT_ATTRACTIVE", "FAIR", "ATTRACTIVE", "DEEP_VALUE", "UNDETERMINED"]},
+    "trigger_validity": {"enum": ["CONFIRMED", "WEAKENED", "INVALIDATED"]},
+    "cash_return_sustainability": {"enum": ["STRONG", "MODERATE", "WEAK", "NOT_APPLICABLE", "UNDETERMINED"]},
+    "opportunity_or_trap": {"enum": ["OPPORTUNITY", "MIXED", "VALUE_TRAP", "INSUFFICIENT_EVIDENCE"]},
+    "verdict": {"enum": ["REJECT", "WATCH", "SMALL_PILOT", "SCALE_IN"]},
+    "risk_overlay": {"enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]},
+    "top_risks": {
+      "type": "array", "minItems": 1, "maxItems": 5,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["risk", "evidence", "monitoring_condition"],
+        "properties": {
+          "risk": {"type": "string", "minLength": 1, "maxLength": 500},
+          "evidence": {"type": "array", "minItems": 1, "maxItems": 8, "items": {"type": "string", "minLength": 1, "maxLength": 500}},
+          "monitoring_condition": {"type": "string", "minLength": 1, "maxLength": 500}
+        }
+      }
+    },
+    "facts_that_would_change_the_view": {"type": "array", "minItems": 1, "maxItems": 10, "items": {"type": "string", "minLength": 1, "maxLength": 500}},
+    "next_review_triggers": {"type": "array", "minItems": 1, "maxItems": 10, "items": {"type": "string", "minLength": 1, "maxLength": 500}},
+    "sources": {
+      "type": "array", "minItems": 1, "maxItems": 25,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["title", "publisher", "url", "publish_date", "event_date", "supports"],
+        "properties": {
+          "title": {"type": "string", "minLength": 1, "maxLength": 300},
+          "publisher": {"type": "string", "minLength": 1, "maxLength": 160},
+          "url": {"type": "string", "format": "uri", "pattern": "^https?://"},
+          "publish_date": {"type": "string", "format": "date"},
+          "event_date": {"type": "string", "format": "date"},
+          "supports": {"type": "string", "minLength": 1, "maxLength": 500}
+        }
+      }
+    },
+    "report_markdown": {"type": "string", "minLength": 1, "maxLength": 10000, "pattern": "^[^<>]*$"}
+  }
+}

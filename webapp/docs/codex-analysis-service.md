@@ -1,5 +1,10 @@
 # 本地 Codex 风险分析服务
 
+> 当前公开研究契约已升级为`risk-review-v2.0.0`和
+> `analysis/schema/risk_analysis_output_v2.json`，使用逐公司screening触发与
+> `research_bundle.json`，不再回写reviewed overlay。下文v1.1触发与overlay内容
+> 仅作为legacy回放说明；当前运行方式见[`shareholder-screen-v2.2.md`](shareholder-screen-v2.2.md)。
+
 ## 固定运行策略
 
 唯一允许的运行配置为：

@@ -219,6 +219,7 @@ def build_structured_release(
     companies: list[Mapping[str, Any]],
     metric_definitions: Mapping[str, Any],
     pipeline_status: Mapping[str, Any],
+    expected_company_count: int | None = None,
     activate: bool = True,
 ) -> Path:
     identifiers = [str(company.get("company_id") or "") for company in companies]
@@ -227,6 +228,10 @@ def build_structured_release(
         or len(identifiers) != len(set(identifiers))
     ):
         raise ReleaseError("company IDs must be safe and unique")
+    if expected_company_count is not None and len(companies) != expected_company_count:
+        raise ReleaseError(
+            f"structured release requires exactly {expected_company_count} companies, got {len(companies)}"
+        )
     release_assessment = assess_release_records(companies)
     if release_assessment.validity.value != "VALID_RELEASE":
         raise ReleaseError(
@@ -240,33 +245,55 @@ def build_structured_release(
         "release_validity": release_assessment.validity.value,
         "companies": [
             {
+                "schema_version": company.get("schema_version"),
+                "calculation_version": company.get("calculation_version"),
+                "metric_definition_version": company.get("metric_definition_version"),
                 "company_id": company["company_id"],
                 "company_name": company.get("company_name"),
                 "securities": company.get("securities", []),
                 "as_of_date": company.get("as_of_date"),
                 "price_timestamp": company.get("price_timestamp"),
-                "data_status": company.get("data_status"),
-                "data_tier": company.get("data_tier"),
-                "data_confidence": company.get("data_confidence", {}),
-                "freshness": company.get("freshness"),
-                "update_status": company.get("update_status"),
+                "status": company.get("status"),
+                "price": company.get("price", {}),
+                "opportunity_score": company.get("opportunity_score", {}),
+                "financial_resilience_score": company.get("financial_resilience_score", {}),
+                "research_trigger": company.get("research_trigger", {}),
                 "warnings": company.get("warnings", []),
-                "blockers": company.get("blockers", []),
                 "metrics": company.get("metrics", {}),
-                "metric_bases": company.get("metric_bases", {}),
-                "security_metrics": company.get("security_metrics", {}),
                 "scores": company.get("scores", {}),
-                "classification": company.get("classification"),
-                "return_type": company.get("return_type"),
-                "veto_flags": company.get("veto_flags", []),
                 "analysis_status": company.get("analysis_status", {}),
-                "coverage_adapter": company.get("coverage_adapter", {}),
-                "selected_input_plan": company.get("selected_input_plan", {}),
                 "source_summary": company.get("source_summary", {}),
             }
             for company in companies
         ],
     }
+    legacy_release = bool(companies) and all(
+        company.get("schema_version") == "shareholder-return-v2"
+        for company in companies
+    )
+    if legacy_release:
+        legacy_version = "shareholder-return-v2.1.0"
+        index = {
+            "schema_version": "shareholder-return-v2",
+            "calculation_version": legacy_version,
+            "metric_definition_version": legacy_version,
+            "company_count": len(companies),
+            "release_validity": release_assessment.validity.value,
+            "companies": [
+                {
+                    key: company.get(key)
+                    for key in (
+                        "company_id", "company_name", "securities", "as_of_date",
+                        "price_timestamp", "data_status", "data_tier", "data_confidence",
+                        "freshness", "update_status", "warnings", "blockers", "metrics",
+                        "metric_bases", "security_metrics", "scores", "classification",
+                        "return_type", "veto_flags", "analysis_status", "coverage_adapter",
+                        "selected_input_plan", "source_summary",
+                    )
+                }
+                for company in companies
+            ],
+        }
     files: dict[str, bytes] = {
         "companies.json": json_bytes(index),
         "metric_definitions.json": json_bytes(metric_definitions),
@@ -278,9 +305,9 @@ def build_structured_release(
         files,
         channel="structured",
         metadata={
-            "schema_version": SCHEMA_VERSION,
-            "calculation_version": CALCULATION_VERSION,
-            "metric_definition_version": METRIC_DEFINITION_VERSION,
+            "schema_version": index["schema_version"],
+            "calculation_version": index["calculation_version"],
+            "metric_definition_version": index["metric_definition_version"],
             "company_count": len(companies),
             "release_validity": release_assessment.validity.value,
         },
@@ -318,6 +345,9 @@ def build_analysis_release(
                 "input_snapshot_hash": payload["input_snapshot_hash"],
                 "verdict": payload["verdict"],
                 "risk_overlay": payload["risk_overlay"],
+                "price_assessment": payload.get("price_assessment"),
+                "opportunity_or_trap": payload.get("opportunity_or_trap"),
+                "one_sentence_conclusion": payload.get("one_sentence_conclusion"),
             }
         )
     status_index: list[dict[str, Any]] = []
@@ -334,7 +364,7 @@ def build_analysis_release(
         status_index.append(public_status)
     files["analyses.json"] = json_bytes(
         {
-            "schema_version": "1.0",
+            "schema_version": "2.0",
             "analyses": index,
             "statuses": status_index,
         }
@@ -343,7 +373,7 @@ def build_analysis_release(
         files,
         channel="analysis",
         metadata={
-            "schema_version": "1.0",
+            "schema_version": "2.0",
             "analysis_count": len(index),
             "status_count": len(status_index),
         },

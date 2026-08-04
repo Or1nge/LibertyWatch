@@ -2,6 +2,18 @@
 
 ## 2026-08-04
 
+- LibertyWatch V2公开计算升级为`shareholder-screen-v2.2.0`：67家公司全部进入
+  价格机会分与财务韧性分双支柱筛选，缺失组成项通过coverage向50收缩；旧
+  SEEV/SSY/CR10/RI/ERI退出公开主路径但保留legacy/internal回放。
+- Futu详细财务不可变证据扩展到67/67家并纳入利润表；真实dry-run为价格机会分
+  67/67、财务韧性分67/67、READY 11、DATA_LIMITED 56、触发候选31、零计算失败，
+  schema、manifest、SHA及非有限数检查全部通过。56家DATA_LIMITED来自现有周线
+  配额只覆盖11家，不以伪造数据补齐。
+- Codex升级为逐公司触发的`risk-review-v2.0.0`，任务冻结`research_bundle.json`
+  及精确SHA文件集；新增OFF/INTERNAL/PUBLIC三态开关，成功报告立即形成本地
+  analysis release，publisher重试周期缩短到2分钟。安装器补齐资本结构配置，并
+  在切换`current`前运行incoming health和67家公司覆盖smoke。
+
 - v2.1只读API增加发布契约校验，前端直接展示公司层级、置信度、时效、口径、警告
   与阻断项。新增版本化人工审批清单和三段激活canary；67条、至少5家真实RI/ERI、
   分数有限且全部人工审批缺一不可，Codex dispatch也在5家前关闭。

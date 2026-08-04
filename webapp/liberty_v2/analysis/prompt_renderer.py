@@ -10,16 +10,19 @@ from typing import Any, Mapping
 
 from ..constants import MODEL, OUTPUT_SCHEMA_VERSION, PROMPT_VERSION, REASONING_EFFORT
 from ..registry import load_metric_definitions
+from ..policy import policy
 from .job_store import AnalysisJob
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_PROMPT_ROOT = PROJECT_ROOT / "analysis" / "prompts" / "v1"
+DEFAULT_PROMPT_ROOT = PROJECT_ROOT / "analysis" / "prompts" / "v2"
 MODE_FILES = {
     "FULL_ENTRY_REVIEW": "full_entry_review.md",
     "URGENT_VETO_REVIEW": "urgent_veto_review.md",
     "MATERIAL_CHANGE_REVIEW": "material_change_review.md",
     "PERIODIC_REFRESH": "periodic_refresh.md",
+    "PRICE_RISK_ANALYSIS": "price_risk_analysis.md",
+    "URGENT_RISK_REVIEW": "urgent_risk_review.md",
 }
 INPUT_DOCUMENT_NAMES = {
     "company_snapshot.json",
@@ -28,6 +31,7 @@ INPUT_DOCUMENT_NAMES = {
     "previous_analysis.json",
     "source_index.json",
     "prompt_metadata.json",
+    "research_bundle.json",
 }
 
 
@@ -70,6 +74,9 @@ def verify_input_snapshot(input_dir: Path, expected_snapshot_hash: str) -> dict[
     company = json.loads((input_dir / "company_snapshot.json").read_text(encoding="utf-8"))
     if not isinstance(company, dict) or snapshot_hash(company) != expected_snapshot_hash:
         raise ValueError("immutable company snapshot hash mismatch")
+    research = json.loads((input_dir / "research_bundle.json").read_text(encoding="utf-8"))
+    if not isinstance(research, dict) or research.get("input_snapshot_hash") != expected_snapshot_hash:
+        raise ValueError("immutable research bundle identity mismatch")
     return company
 
 
@@ -163,6 +170,37 @@ class InputSnapshotBuilder:
             "output_schema_version": OUTPUT_SCHEMA_VERSION,
             "model": job.model,
             "reasoning_effort": job.reasoning_effort,
+            "policy_version": policy().get("policy_version"),
+        }
+        price_position = (
+            company_snapshot.get("opportunity_score", {})
+            .get("components", {})
+            .get("five_year_price_position", {})
+            if isinstance(company_snapshot.get("opportunity_score"), Mapping)
+            else {}
+        )
+        research_bundle = {
+            "schema_version": "research-bundle-v2.0",
+            "company_id": company_snapshot.get("company_id"),
+            "company_name": company_snapshot.get("company_name"),
+            "securities": company_snapshot.get("securities", []),
+            "as_of_date": company_snapshot.get("as_of_date"),
+            "price": company_snapshot.get("price", {}),
+            "market_metrics": company_snapshot.get("market_metrics", {}),
+            "five_year_price_percentile": price_position.get("percentile_rank"),
+            "opportunity_score": company_snapshot.get("opportunity_score", {}),
+            "financial_resilience_score": company_snapshot.get("financial_resilience_score", {}),
+            "financial_history": company_snapshot.get("financial_history", []),
+            "corporate_events": company_snapshot.get("research_inputs", {}).get("futu_events", {}),
+            "official_disclosure_index": company_snapshot.get("research_inputs", {}).get("official_disclosure_index", []),
+            "controlled_facts": company_snapshot.get("research_inputs", {}).get("controlled_facts", []),
+            "source_summary": source_index or company_snapshot.get("source_summary", {}),
+            "warnings": company_snapshot.get("warnings", []),
+            "trigger": trigger,
+            "previous_successful_analysis": previous_analysis or {},
+            "calculation_version": job.calculation_version,
+            "policy_version": policy().get("policy_version"),
+            "input_snapshot_hash": job.input_snapshot_hash,
         }
         documents = {
             "company_snapshot.json": company_snapshot,
@@ -171,6 +209,7 @@ class InputSnapshotBuilder:
             "previous_analysis.json": previous_analysis or {},
             "source_index.json": source_index or company_snapshot.get("source_summary", {}),
             "prompt_metadata.json": metadata,
+            "research_bundle.json": research_bundle,
         }
         try:
             checksums: dict[str, str] = {}

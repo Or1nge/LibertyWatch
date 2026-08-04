@@ -364,25 +364,27 @@ class CodexWorker:
                 error_message=str(error),
             )
             return RunResult("FAILED", "SCHEMA_INVALID", str(error))
-        try:
-            reviewed_overlay = self.reviewed_overlays.build(payload, job)
-        except ReviewedOverlayError as error:
-            if job.attempt_count <= self.config.schema_retries:
+        reviewed_overlay = None
+        if "reviewed_overlay_candidates" in payload:
+            try:
+                reviewed_overlay = self.reviewed_overlays.build(payload, job)
+            except ReviewedOverlayError as error:
+                if job.attempt_count <= self.config.schema_retries:
+                    self.store.mark_error(
+                        job.job_id,
+                        status="WAITING_RETRY",
+                        error_code="SCHEMA_INVALID",
+                        error_message=str(error),
+                        next_retry_at=utc_now() + timedelta(minutes=1),
+                    )
+                    return RunResult("WAITING_RETRY", "SCHEMA_INVALID", str(error))
                 self.store.mark_error(
                     job.job_id,
-                    status="WAITING_RETRY",
-                    error_code="OVERLAY_INVALID",
+                    status="FAILED",
+                    error_code="SCHEMA_INVALID",
                     error_message=str(error),
-                    next_retry_at=utc_now() + timedelta(minutes=1),
                 )
-                return RunResult("WAITING_RETRY", "OVERLAY_INVALID", str(error))
-            self.store.mark_error(
-                job.job_id,
-                status="FAILED",
-                error_code="OVERLAY_INVALID",
-                error_message=str(error),
-            )
-            return RunResult("FAILED", "OVERLAY_INVALID", str(error))
+                return RunResult("FAILED", "SCHEMA_INVALID", str(error))
         result_path = self.storage.finalize_success(
             job,
             payload,

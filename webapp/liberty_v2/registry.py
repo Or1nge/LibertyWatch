@@ -64,7 +64,7 @@ def load_metric_definitions(path: Path = DEFAULT_DEFINITIONS) -> dict[str, Any]:
         if not isinstance(metric, dict):
             raise RegistryError(f"metric #{index} must be an object")
         missing = REQUIRED_DEFINITION_FIELDS - set(metric)
-        extra = set(metric) - REQUIRED_DEFINITION_FIELDS
+        extra = set(metric) - REQUIRED_DEFINITION_FIELDS - {"visibility"}
         if missing or extra:
             raise RegistryError(
                 f"metric #{index} fields mismatch: missing={sorted(missing)} extra={sorted(extra)}"
@@ -76,6 +76,8 @@ def load_metric_definitions(path: Path = DEFAULT_DEFINITIONS) -> dict[str, Any]:
         for list_key in ("applicability", "caveats_zh", "required_fields"):
             if not isinstance(metric[list_key], list):
                 raise RegistryError(f"{metric_id}.{list_key} must be an array")
+        if metric.get("visibility", "PUBLIC") not in {"PUBLIC", "LEGACY_INTERNAL"}:
+            raise RegistryError(f"{metric_id}.visibility is invalid")
     return payload
 
 

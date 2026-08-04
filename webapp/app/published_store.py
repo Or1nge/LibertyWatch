@@ -88,11 +88,13 @@ class PublishedV2Store:
         analysis_root: Path,
         definitions_path: Path,
         enabled: bool = True,
+        analysis_enabled: bool = True,
     ) -> None:
         self.structured_root = structured_root
         self.analysis_root = analysis_root
         self.definitions_path = definitions_path
         self.enabled = enabled
+        self.analysis_enabled = analysis_enabled
         self._lock = RLock()
         self._structured_signature: tuple[str, int, int] | None = None
         self._analysis_signature: tuple[str, int, int] | None = None
@@ -134,7 +136,7 @@ class PublishedV2Store:
                 index = json.loads((path / "companies.json").read_text(encoding="utf-8"))
                 definitions = json.loads((path / "metric_definitions.json").read_text(encoding="utf-8"))
                 pipeline = json.loads((path / "pipeline_status.json").read_text(encoding="utf-8"))
-                if index.get("schema_version") != "shareholder-return-v2":
+                if index.get("schema_version") not in {"shareholder-screen-v2", "shareholder-return-v2"}:
                     raise PublishedDataError("unsupported structured schema version")
                 try:
                     summary = validate_public_index(index)
@@ -153,7 +155,7 @@ class PublishedV2Store:
                 with self._lock:
                     self._definitions = definitions
 
-            analysis_signature = self._signature(self.analysis_root)
+            analysis_signature = self._signature(self.analysis_root) if self.analysis_enabled else None
             if analysis_signature and (force or analysis_signature != self._analysis_signature):
                 path = Path(analysis_signature[0])
                 _verify_release(path, "analysis")
@@ -204,20 +206,7 @@ class PublishedV2Store:
         value = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(value, dict):
             return None
-        with self._lock:
-            index = deepcopy(self._companies_index or {})
-        try:
-            validate_public_index(
-                {
-                    "schema_version": index.get("schema_version"),
-                    "calculation_version": index.get("calculation_version"),
-                    "metric_definition_version": index.get("metric_definition_version"),
-                    "release_validity": index.get("release_validity"),
-                    "company_count": 1,
-                    "companies": [value],
-                }
-            )
-        except ValueError:
+        if value.get("company_id") != company_id or value.get("schema_version") not in {"shareholder-screen-v2", "shareholder-return-v2"}:
             return None
         value["analysis_status"] = self.combined_analysis_status(
             company_id,
@@ -269,6 +258,12 @@ class PublishedV2Store:
             "verdict": analysis.get("verdict"),
             "risk_overlay": analysis.get("risk_overlay"),
             "one_sentence_conclusion": analysis.get("one_sentence_conclusion"),
+            "price_assessment": analysis.get("price_assessment"),
+            "opportunity_or_trap": analysis.get("opportunity_or_trap"),
+            "trigger_validity": analysis.get("trigger_validity"),
+            "cash_return_sustainability": analysis.get("cash_return_sustainability"),
+            "top_risks": analysis.get("top_risks", []),
+            "sources": analysis.get("sources", []),
         }
         if not value or value.get("status") == "NOT_REQUESTED":
             value["status"] = "SUCCEEDED"
@@ -297,16 +292,22 @@ class PublishedV2Store:
                     if self._companies_index
                     else None
                 ),
-                "company_tier_counts": (
+                "company_status_counts": (
                     dict(self._structured_summary.tier_counts)
                     if self._structured_summary
                     else {}
                 ),
-                "scored_company_count": (
-                    len(self._structured_summary.scored_company_ids)
+                "opportunity_score_count": (
+                    self._structured_summary.opportunity_score_count
                     if self._structured_summary
                     else 0
                 ),
+                "financial_resilience_score_count": (
+                    self._structured_summary.financial_resilience_score_count
+                    if self._structured_summary
+                    else 0
+                ),
+                "analysis_public_enabled": self.analysis_enabled,
             }
 
     def enrich_watchlist(self, snapshot: Mapping[str, Any]) -> dict[str, Any]:
@@ -320,7 +321,7 @@ class PublishedV2Store:
             result["shareholderReturnV2"] = {
                 "enabled": True,
                 "available": False,
-                "schemaVersion": "shareholder-return-v2",
+                "schemaVersion": "shareholder-screen-v2",
                 "message": "v2结构化数据尚未发布，继续显示v1。",
             }
             result["metricDefinitionsV2"] = (definitions or {}).get("metrics", [])
@@ -342,6 +343,21 @@ class PublishedV2Store:
             "metricDefinitionVersion": index.get("metric_definition_version"),
             "companyCount": index.get("company_count"),
             "releaseValidity": index.get("release_validity"),
+            "statusCounts": (
+                dict(self._structured_summary.tier_counts)
+                if self._structured_summary
+                else {}
+            ),
+            "opportunityScoreCount": (
+                self._structured_summary.opportunity_score_count
+                if self._structured_summary
+                else 0
+            ),
+            "financialResilienceScoreCount": (
+                self._structured_summary.financial_resilience_score_count
+                if self._structured_summary
+                else 0
+            ),
             "tierCounts": (
                 dict(self._structured_summary.tier_counts)
                 if self._structured_summary

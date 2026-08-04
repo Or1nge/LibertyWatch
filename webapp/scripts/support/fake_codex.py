@@ -21,6 +21,68 @@ def valid_payload() -> dict:
     if market not in {"CN", "HK", "US", "OTHER"}:
         market = "OTHER"
     payload = {
+        "schema_version": "2.0",
+        "prompt_version": metadata["prompt_version"],
+        "model": "gpt-5.6-sol",
+        "reasoning_effort": "xhigh",
+        "analysis_id": metadata["analysis_id"],
+        "analysis_mode": metadata["analysis_mode"],
+        "company_id": metadata["company_id"],
+        "company_name": company.get("company_name") or "测试公司",
+        "ticker": str(first.get("ticker") or "TEST"),
+        "market": market,
+        "as_of_date": company.get("as_of_date") or "2026-08-01",
+        "input_snapshot_hash": metadata["input_snapshot_hash"],
+        "calculation_version": metadata["calculation_version"],
+        "trigger": {
+            "type": trigger.get("type") or metadata["trigger_type"],
+            "summary": trigger.get("summary") or "fake Codex合法输出",
+        },
+        "data_issue_detected": False,
+        "data_issue_notes": [],
+        "one_sentence_conclusion": "该公司仍需关注分配覆盖和业务下行风险。",
+        "price_assessment": "ATTRACTIVE",
+        "trigger_validity": "CONFIRMED",
+        "cash_return_sustainability": "MODERATE",
+        "opportunity_or_trap": "MIXED",
+        "verdict": "WATCH",
+        "risk_overlay": "MEDIUM",
+        "top_risks": [
+            {
+                "risk": "现金流覆盖可能下降",
+                "evidence": ["结构化快照显示需持续复核覆盖能力"],
+                "monitoring_condition": "连续两个完整财年经营现金流覆盖明显改善",
+            }
+        ],
+        "facts_that_would_change_the_view": ["覆盖倍数连续改善或明显恶化"],
+        "next_review_triggers": ["新年报或普通分红下降"],
+        "sources": [
+            {
+                "title": "测试年报",
+                "publisher": "测试交易所",
+                "url": "https://example.com/annual-report",
+                "publish_date": "2026-03-31",
+                "event_date": "2025-12-31",
+                "supports": "仅用于fake执行器测试",
+            }
+        ],
+        "report_markdown": "# 定性风险复核\n\n该报告由 fake Codex 生成，仅用于测试。",
+    }
+    return payload
+
+
+
+def legacy_payload() -> dict:
+    input_dir = Path(os.environ["CODEX_JOB_INPUT_DIR"])
+    metadata = json.loads((input_dir / "prompt_metadata.json").read_text(encoding="utf-8"))
+    trigger = json.loads((input_dir / "trigger.json").read_text(encoding="utf-8"))
+    company = json.loads((input_dir / "company_snapshot.json").read_text(encoding="utf-8"))
+    securities = company.get("securities") or [{}]
+    first = securities[0] if isinstance(securities[0], dict) else {}
+    market = str(first.get("market") or "OTHER")
+    if market not in {"CN", "HK", "US", "OTHER"}:
+        market = "OTHER"
+    payload = {
         "schema_version": "1.1",
         "prompt_version": metadata["prompt_version"],
         "model": "gpt-5.6-sol",
@@ -116,7 +178,6 @@ def valid_payload() -> dict:
     }
     return payload
 
-
 def main() -> int:
     arguments = sys.argv[1:]
     if arguments == ["--version"]:
@@ -153,7 +214,10 @@ def main() -> int:
     _ = sys.stdin.read()
     output_index = arguments.index("--output-last-message") + 1
     output_path = Path(arguments[output_index])
-    payload = valid_payload()
+    schema_index = arguments.index("--output-schema") + 1
+    schema = json.loads(Path(arguments[schema_index]).read_text(encoding="utf-8"))
+    schema_version = str(schema.get("properties", {}).get("schema_version", {}).get("const") or "")
+    payload = legacy_payload() if schema_version.startswith("1.") else valid_payload()
     if scenario == "schema_error":
         payload.pop("sources")
     elif scenario == "wrong_company":
@@ -162,11 +226,11 @@ def main() -> int:
         payload["input_snapshot_hash"] = "0" * 64
     elif scenario == "wrong_ticker":
         payload["ticker"] = "WRONG"
-    elif scenario == "overlay_unknown_source":
+    elif scenario == "overlay_unknown_source" and "reviewed_overlay_candidates" in payload:
         payload["reviewed_overlay_candidates"]["business_durability"]["source"] = "https://example.com/not-cited"
-    elif scenario == "overlay_expiry_too_long":
+    elif scenario == "overlay_expiry_too_long" and "reviewed_overlay_candidates" in payload:
         payload["reviewed_overlay_candidates"]["business_durability"]["expires_at"] = "2028-08-01"
-    elif scenario == "overlay_rubric_mismatch":
+    elif scenario == "overlay_rubric_mismatch" and "reviewed_overlay_candidates" in payload:
         payload["reviewed_overlay_candidates"]["business_durability"]["value"] = 99
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")

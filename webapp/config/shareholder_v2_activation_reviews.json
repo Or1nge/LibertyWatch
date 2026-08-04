@@ -1,8 +1,9 @@
 {
-  "schema_version": "shareholder-return-v2.1-activation-reviews-v1",
-  "calculation_version": "shareholder-return-v2.1.0",
-  "expected_company_count": 67,
-  "minimum_scored_companies": 5,
-  "approved_company_ids": [],
-  "notes": "Activation remains closed until every scored first-stage company is manually checked and listed here."
+  "schema_version": "shareholder-screen-v2-global-approval-v1",
+  "calculation_version": "shareholder-screen-v2.2.0",
+  "metric_policy_sha256": null,
+  "public_contract_sha256": null,
+  "approved_at": null,
+  "reviewer": null,
+  "notes": "Default closed. Fill exact version and SHA values only after the 67-company shadow release is reviewed."
 }

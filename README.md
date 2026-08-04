@@ -11,8 +11,8 @@
 - `data/monitor/raw/<发行人ID>/`：Futu OpenD 原始响应与变更快照；
 - `data/raw/annual_reports/`：67 家正式公司的官方年报证据；其中原11家为旧归档，
   其余56家保存在可断点续传的 `official_backfill_v1/`；
-- `data/shareholder-v2/source-evidence/futu-financials/`：56家公司不可变的Futu
-  现金流量表/资产负债表响应；
+- `data/shareholder-v2/source-evidence/futu-financials/`：67家公司不可变的Futu
+  利润表、现金流量表和资产负债表响应；
 - `data/shareholder-v2/backfill-output/futu-ledger-v1/`：不覆盖生产staging的
   v2来源账本副本与字段覆盖报告；
 - `data/shareholder-v2/backfill-output/{dividend,official-cashflow,equity-bridge}-candidates-v1/`：
@@ -29,7 +29,7 @@
 配置、文档与 WebApp；原始年报、Futu 响应、SQLite、登录状态和本地运行产物由
 根级 `.gitignore` 隔离，不上传 GitHub。
 
-## 股东回报 v2 与风险服务
+## LibertyWatch V2 复合筛选与风险服务
 
 新版确定性计算、只读 API、Web 展示和本地 Codex 风险服务实现在本仓库的
 `webapp/` 子目录。实际架构与迁移边界见
@@ -43,9 +43,11 @@
 根目录的数据侧仍是原始数据和旧事件监控来源；Ali 只接收经过校验的公开
 release。新版迁移不会删除或改写本目录的原始历史数据。
 
-v2.1 计算前直接把每分钟 `latest_snapshot.json` 作为内存快变量覆盖层读取，
-不再把价格、汇率和估值写回慢 staging。统一 assessment 只要求实际选中的
-来源字段；缺少未计入的回购或不适用对账不会使整批 release 非法。
+公开主路径现为 `shareholder-screen-v2.2.0`：67家公司全部进入价格机会分与财务
+韧性分双支柱筛选；旧SSY/CR10/RI/ERI仅保留为legacy/internal回放。计算直接读取
+`latest_snapshot.json`、五年Futu前复权周线和最近三至五年详细财务报表，不把
+行情写回慢staging。当前实现、开关和验收命令见
+[`webapp/docs/shareholder-screen-v2.2.md`](webapp/docs/shareholder-screen-v2.2.md)。
 
 ## 工作流
 

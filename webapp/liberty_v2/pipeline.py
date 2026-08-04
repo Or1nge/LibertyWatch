@@ -60,6 +60,7 @@ from .models import (
     CoverageStatus,
     DataStatus,
     FCFYear,
+    Freshness,
     IndustryKind,
     MetricBasis,
     MetricRecord,
@@ -68,6 +69,12 @@ from .models import (
     StructuredConfigScore,
     VetoFlag,
     jsonable,
+)
+from .screening import (
+    finite_decimal,
+    financial_resilience_score,
+    opportunity_score,
+    research_trigger,
 )
 from .input_resolution import eligible_coverage_rows, eligible_distribution_rows
 from .veto import evaluate_vetoes
@@ -1761,6 +1768,189 @@ def compute_company_snapshot(
             "status": slow.coverage.status.value,
             "caveats": list(slow.coverage.caveats),
             "missing_fields": list(slow.coverage.required_missing_fields),
+        },
+        "analysis_status": jsonable(raw.get("analysis_status", {"status": "NOT_REQUESTED", "latest_success_at": None})),
+        "calculated_at": current.isoformat(),
+    }
+
+
+def compute_company_screening_snapshot(
+    raw: Mapping[str, Any],
+    *,
+    market_observation: Any | None,
+    weekly_prices: Sequence[Any],
+    financial_rows: Sequence[Mapping[str, Any]],
+    profile: str,
+    screening_policy: Mapping[str, Any],
+    source_summary: Mapping[str, Any],
+    events: Sequence[str] = (),
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Build one public shareholder-screen-v2.2.0 company record."""
+
+    current = now or datetime.now(timezone.utc)
+    company_id = str(raw.get("company_id") or "")
+    company_name = str(raw.get("company_name") or "").strip()
+    securities = raw.get("securities") if isinstance(raw.get("securities"), Sequence) else []
+    observation = market_observation
+    known_security_ids = {
+        str(item.get("security_id") or "")
+        for item in securities
+        if isinstance(item, Mapping)
+    }
+    observation_security_id = str(getattr(observation, "security_id", "") or "")
+    identity_valid = bool(
+        company_id
+        and company_name
+        and known_security_ids
+        and (not observation_security_id or observation_security_id in known_security_ids)
+        and (observation is None or str(getattr(observation, "company_id", "") or "") == company_id)
+    )
+    price = finite_decimal(getattr(observation, "price", None), positive=True)
+    price_fresh = bool(
+        observation is not None
+        and getattr(observation, "freshness", None) is not Freshness.STALE_LAST_GOOD
+    )
+    opportunity = opportunity_score(
+        dividend_yield_ttm_pct=getattr(observation, "dividend_yield_ttm_pct", None),
+        pe_ttm=getattr(observation, "pe_ttm", None),
+        pe=getattr(observation, "pe", None),
+        pb=getattr(observation, "pb", None),
+        profile=profile,
+        current_price=price,
+        weekly_prices=weekly_prices,
+        policy=screening_policy["price_opportunity"],
+    )
+    resilience = financial_resilience_score(
+        financial_rows,
+        profile=profile,
+        policy=screening_policy["financial_resilience"],
+    )
+    legacy = raw.get("legacy_metrics") if isinstance(raw.get("legacy_metrics"), Mapping) else {}
+    legacy_average = finite_decimal(legacy.get("annual_average_per_share_cny"), positive=True)
+    fx = finite_decimal(getattr(observation, "fx_to_base", None), positive=True)
+    v1_target = legacy_average / Decimal("0.04") / fx if legacy_average is not None and fx is not None else None
+    v1_target_reached = bool(price is not None and v1_target is not None and price <= v1_target)
+    trigger = research_trigger(
+        opportunity=opportunity,
+        resilience=resilience,
+        dividend_yield_ttm_pct=getattr(observation, "dividend_yield_ttm_pct", None),
+        price_is_fresh=price_fresh,
+        v1_target_reached=v1_target_reached,
+        events=events,
+        policy=screening_policy["triggers"],
+    )
+    warnings = list(
+        dict.fromkeys(
+            [
+                *opportunity.get("warnings", []),
+                *resilience.get("warnings", []),
+                *source_summary.get("warnings", []),
+            ]
+        )
+    )
+    fatal: list[str] = []
+    if not identity_valid:
+        fatal.append("COMPANY_OR_SECURITY_IDENTITY_CONFLICT")
+    if price is None:
+        fatal.append("LEGAL_PRICE_MISSING")
+    if fatal:
+        status = "UNAVAILABLE"
+    elif not price_fresh:
+        status = "STALE"
+        warnings.append("STALE_PRICE")
+        trigger["eligible"] = bool(trigger.get("event_codes"))
+    elif opportunity.get("status") == "READY" and resilience.get("status") == "READY":
+        status = "READY"
+    else:
+        status = "DATA_LIMITED"
+    security_id = str(getattr(observation, "security_id", "") or "")
+    price_public = {
+        "value": format(price, "f") if price is not None else None,
+        "currency": getattr(observation, "currency", None),
+        "security_id": security_id or None,
+        "timestamp": (
+            getattr(observation, "quote_timestamp", None).isoformat()
+            if observation is not None and getattr(observation, "quote_timestamp", None)
+            else None
+        ),
+        "market_state": getattr(observation, "market_state", None),
+        "freshness": (
+            getattr(observation, "freshness", Freshness.STALE_LAST_GOOD).value
+            if observation is not None
+            else Freshness.STALE_LAST_GOOD.value
+        ),
+        "basis": "VENDOR" if price is not None else "UNAVAILABLE",
+        "source_summary": {
+            "source": getattr(observation, "provider", None),
+            "field_id": "current_price",
+            "snapshot_sha256": getattr(observation, "snapshot_sha256", None),
+        },
+    }
+    valuation_component = opportunity.get("components", {}).get("valuation", {})
+    price_position = opportunity.get("components", {}).get("five_year_price_position", {})
+    dividend_component = opportunity.get("components", {}).get("dividend_yield", {})
+    metrics = {
+        "current_price": {"value": price_public["value"], "status": "VALID" if price is not None else "UNAVAILABLE", "basis": price_public["basis"], "unit": "security_currency"},
+        "ttm_dividend_yield": {"value": dividend_component.get("input_value"), "status": dividend_component.get("status"), "basis": "VENDOR", "unit": "percent"},
+        "valuation_anchor": valuation_component,
+        "five_year_price_position": price_position,
+        "v1_preferred_price": {"value": format(v1_target.quantize(Decimal('0.0001')), 'f') if v1_target is not None else None, "status": "VALID" if v1_target is not None else "UNAVAILABLE", "basis": "LEGACY_V1", "unit": "security_currency"},
+    }
+    public_financial_rows = []
+    for row in financial_rows:
+        ocf_value = finite_decimal(row.get("operating_cash_flow"))
+        capex_value = finite_decimal(row.get("capital_expenditure"))
+        simplified_fcf = ocf_value - capex_value if ocf_value is not None and capex_value is not None else None
+        public_financial_rows.append(
+            {
+                "fiscal_year": row.get("fiscal_year"),
+                "currency": row.get("currency"),
+                **{
+                    field: format(value, "f") if isinstance(value, Decimal) else value
+                    for field, value in row.items()
+                    if field not in {"fiscal_year", "currency", "source", "warnings"}
+                },
+                "source": row.get("source"),
+                "warnings": list(row.get("warnings", [])),
+                "simplified_fcf": format(simplified_fcf, "f") if simplified_fcf is not None else None,
+            }
+        )
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "calculation_version": CALCULATION_VERSION,
+        "metric_definition_version": METRIC_DEFINITION_VERSION,
+        "company_id": company_id,
+        "company_name": company_name,
+        "securities": jsonable(securities),
+        "as_of_date": current.date().isoformat(),
+        "price_timestamp": price_public["timestamp"],
+        "status": status,
+        "price": price_public,
+        "opportunity_score": opportunity,
+        "financial_resilience_score": resilience,
+        "research_trigger": trigger,
+        "warnings": list(dict.fromkeys(warnings)),
+        "fatal_errors": fatal,
+        "source_summary": jsonable(source_summary),
+        "financial_history": jsonable(public_financial_rows),
+        "research_inputs": jsonable(raw.get("_screening_research_inputs", {})),
+        "market_metrics": {
+            "dividend_yield_ttm_pct": dividend_component.get("input_value"),
+            "pe": format(observation.pe, "f") if observation is not None and observation.pe is not None else None,
+            "pe_ttm": format(observation.pe_ttm, "f") if observation is not None and observation.pe_ttm is not None else None,
+            "pb": format(observation.pb, "f") if observation is not None and observation.pb is not None else None,
+            "earnings_per_share": format(observation.earnings_per_share, "f") if observation is not None and observation.earnings_per_share is not None else None,
+            "book_value_per_share": format(observation.book_value_per_share, "f") if observation is not None and observation.book_value_per_share is not None else None,
+        },
+        "metrics": jsonable(metrics),
+        "scores": {
+            "opportunity_score": opportunity,
+            "financial_resilience_score": resilience,
+        },
+        "analysis_eligibility": {
+            "eligible": bool(trigger.get("eligible")),
+            "status": "ELIGIBLE" if trigger.get("eligible") else "NOT_TRIGGERED",
         },
         "analysis_status": jsonable(raw.get("analysis_status", {"status": "NOT_REQUESTED", "latest_success_at": None})),
         "calculated_at": current.isoformat(),

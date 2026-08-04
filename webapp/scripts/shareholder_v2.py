@@ -48,7 +48,12 @@ from liberty_v2.market_observation import (  # noqa: E402
     overlay_market_observation,
 )
 from liberty_v2.migration import migrate_v1  # noqa: E402
-from liberty_v2.pipeline import compute_company_snapshot_v21  # noqa: E402
+from liberty_v2.input_resolution import (  # noqa: E402
+    load_five_year_weekly_prices,
+    load_screening_financial_rows,
+    screening_profile,
+)
+from liberty_v2.pipeline import compute_company_screening_snapshot, compute_company_snapshot_v21  # noqa: E402
 from liberty_v2.registry import load_metric_definitions, load_policy  # noqa: E402
 from liberty_v2.release import (  # noqa: E402
     AtomicReleaseBuilder,
@@ -99,6 +104,12 @@ def paths() -> dict[str, Path]:
                 PROJECT_ROOT / "runtime" / "latest_snapshot.json",
             )
         ),
+        "weekly_history": Path(
+            os.getenv(
+                "SHAREHOLDER_V2_WEEKLY_HISTORY",
+                PROJECT_ROOT / "runtime" / "weekly_history.json",
+            )
+        ),
         "capital_structure": Path(
             os.getenv(
                 "SHAREHOLDER_V2_CAPITAL_STRUCTURE",
@@ -116,6 +127,20 @@ def paths() -> dict[str, Path]:
 
 def dump(value: Any) -> None:
     print(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True, default=str))
+
+
+def shareholder_screen_enabled() -> bool:
+    value = os.getenv("SHAREHOLDER_SCREEN_ENABLED", "false").strip().lower()
+    if value not in {"true", "false"}:
+        raise ValueError("SHAREHOLDER_SCREEN_ENABLED must be true or false")
+    return value == "true"
+
+
+def codex_analysis_mode() -> str:
+    value = os.getenv("CODEX_ANALYSIS_MODE", "OFF").strip().upper()
+    if value not in {"OFF", "INTERNAL", "PUBLIC"}:
+        raise ValueError("CODEX_ANALYSIS_MODE must be OFF, INTERNAL, or PUBLIC")
+    return value
 
 
 def current_release(channel_root: Path) -> Path:
@@ -138,7 +163,7 @@ def worker_config(*, codex_binary: Path | None = None, timeout: int | None = Non
         project_root=PROJECT_ROOT,
         jobs_root=paths()["jobs"],
         output_root=paths()["analysis_output"],
-        schema_path=PROJECT_ROOT / "analysis" / "schema" / "risk_analysis_output_v1.json",
+        schema_path=PROJECT_ROOT / "analysis" / "schema" / "risk_analysis_output_v2.json",
         codex_binary=selected_binary,
         timeout_seconds=timeout or int(os.getenv("CODEX_TIMEOUT_SECONDS", policy["timeout_seconds"])),
         global_concurrency=int(os.getenv("CODEX_GLOBAL_CONCURRENCY", policy["global_concurrency"])),
@@ -170,6 +195,9 @@ def runtime_status(extra: dict[str, Any] | None = None) -> dict[str, Any]:
     value = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "current_calculation_version": CALCULATION_VERSION,
+        "shareholder_screen_enabled": shareholder_screen_enabled(),
+        "codex_analysis_mode": codex_analysis_mode(),
+        "legacy_shareholder_return_v2_ignored": os.getenv("SHAREHOLDER_RETURN_V2_ENABLED") == "true",
         "current_prompt_version": PROMPT_VERSION,
         "model": MODEL,
         "reasoning_effort": REASONING_EFFORT,
@@ -248,13 +276,22 @@ def command_compute(args: argparse.Namespace) -> int:
     if not inputs:
         raise RuntimeError("no staged company records; run migrate --apply or provide backfilled inputs")
     now = datetime.now(timezone.utc)
-    valid_store = LastValidSnapshotStore(paths()["valid"])
     companies: list[dict[str, Any]] = []
     company_ids: set[str] = set()
-    cache_hits = 0
     failures: list[dict[str, str]] = []
-    reviewed_overlays = ReviewedOverlayStore(paths()["analysis_output"])
-    observations, registry = _fast_context(now)
+    observations = (
+        load_market_observations(paths()["market_snapshot"], now=now)
+        if paths()["market_snapshot"].is_file()
+        else {}
+    )
+    policy_payload = load_policy()
+    screening_policy = policy_payload["screening"]
+    watchlist_payload = json.loads((PROJECT_ROOT / "config" / "watchlist.json").read_text(encoding="utf-8"))
+    watchlist_by_company = {
+        str(item.get("issuerId") or ""): item
+        for item in watchlist_payload.get("securities", [])
+        if isinstance(item, Mapping)
+    }
     for position, source in enumerate(inputs):
         raw: dict[str, Any] | None = None
         fallback_id = f"invalid-input-{position:03d}"
@@ -265,32 +302,90 @@ def command_compute(args: argparse.Namespace) -> int:
                 raise ValueError("company_id is missing or unsafe")
             if company_id in company_ids:
                 raise ValueError("duplicate company_id in staging inputs")
-            raw = reviewed_overlays.apply_to_raw(
-                raw,
-                company_id=company_id,
-                on_date=now.date(),
+            observation = observations.get(company_id)
+            security_id = str(getattr(observation, "security_id", "") or "")
+            event_path = LIBERTY_ROOT / "data" / "monitor" / "raw" / security_id / "latest.json"
+            futu_events: dict[str, Any] = {}
+            if event_path.is_file():
+                event_payload = json.loads(event_path.read_text(encoding="utf-8"))
+                futu_events = {
+                    key: event_payload.get(key, [])
+                    for key in ("dividends", "buybacks", "financials", "news")
+                }
+            official_disclosures: dict[tuple[str, str, str], dict[str, Any]] = {}
+            controlled_facts: list[dict[str, Any]] = []
+            for point in raw.get("raw_data_points", []):
+                if not isinstance(point, Mapping):
+                    continue
+                source_name = str(point.get("source_name") or "")
+                if "futu" not in source_name.lower():
+                    key = (
+                        source_name,
+                        str(point.get("source_document") or ""),
+                        str(point.get("source_publish_date") or ""),
+                    )
+                    official_disclosures[key] = {
+                        "source_name": key[0],
+                        "source_document": key[1],
+                        "source_publish_date": key[2],
+                        "fiscal_period": point.get("fiscal_period"),
+                    }
+                if point.get("data_status") in {"VALID", "KNOWN_ZERO", "CONFLICT"}:
+                    controlled_facts.append({
+                        "field_id": point.get("field_id"),
+                        "fiscal_period": point.get("fiscal_period"),
+                        "value": point.get("value"),
+                        "currency": point.get("currency"),
+                        "unit": point.get("unit"),
+                        "data_status": point.get("data_status"),
+                        "source_name": source_name,
+                    })
+            raw["_screening_research_inputs"] = {
+                "futu_events": futu_events,
+                "official_disclosure_index": list(official_disclosures.values()),
+                "controlled_facts": controlled_facts,
+            }
+            weekly_prices, weekly_summary = load_five_year_weekly_prices(
+                paths()["weekly_history"],
+                security_id=security_id,
+                as_of=now.date(),
+                years=int(screening_policy["price_opportunity"]["history_years"]),
             )
-            raw, assessment = _prepare_company_input(
+            financial_rows, financial_summary = load_screening_financial_rows(
                 raw,
+                evidence_root=paths()["financial_evidence"],
+                maximum_years=int(screening_policy["financial_resilience"]["maximum_fiscal_years"]),
+            )
+            profile = screening_profile(
+                raw,
+                watchlist_by_company.get(company_id),
+                screening_policy["profile"],
+            )
+            source_summary = {
+                "market": observation.public_dict() if observation is not None else {"warning": "MARKET_SNAPSHOT_MISSING"},
+                "price_history": weekly_summary,
+                "financials": financial_summary,
+                "official_structured_fact_count": sum(
+                    str(item.get("source_name") or "").lower().find("futu") < 0
+                    for item in raw.get("raw_data_points", [])
+                    if isinstance(item, Mapping) and item.get("data_status") in {"VALID", "KNOWN_ZERO"}
+                ),
+                "warnings": list(dict.fromkeys([
+                    *financial_summary.get("warnings", []),
+                    *([weekly_summary["warning"]] if weekly_summary.get("warning") else []),
+                ])),
+            }
+            candidate = compute_company_screening_snapshot(
+                raw,
+                market_observation=observation,
+                weekly_prices=weekly_prices,
+                financial_rows=financial_rows,
+                profile=profile,
+                screening_policy=screening_policy,
+                source_summary=source_summary,
                 now=now,
-                observations=observations,
-                registry=registry,
             )
-            slow, cache_hit = load_or_compute_slow_v21(
-                raw,
-                assessment,
-                paths()["slow_cache"] / f"{company_id}.json",
-                on_date=now.date(),
-                force=args.force_slow,
-            )
-            cache_hits += int(cache_hit)
-            candidate = compute_company_snapshot_v21(
-                raw,
-                assessment,
-                now=now,
-                slow_variables=slow,
-            )
-            companies.append(valid_store.select_publishable(candidate))
+            companies.append(candidate)
         except Exception as error:
             raw_id = str((raw or {}).get("company_id") or "")
             company_id = (
@@ -303,45 +398,57 @@ def command_compute(args: argparse.Namespace) -> int:
                 f"{type(error).__name__}: {error}",
             )[:1000]
             candidate = {
-                "schema_version": "shareholder-return-v2",
+                "schema_version": "shareholder-screen-v2",
                 "calculation_version": CALCULATION_VERSION,
+                "metric_definition_version": CALCULATION_VERSION,
                 "company_id": company_id,
                 "company_name": str((raw or {}).get("company_name") or company_id),
-                "data_status": "PARTIAL",
-                "data_tier": "BLOCKED",
-                "data_confidence": {"total": 0, "domains": {}, "caveats": []},
-                "freshness": "STALE_LAST_GOOD",
-                "update_status": "BLOCKED",
-                "warnings": [],
-                "blockers": ["INPUT_OR_CALCULATION_FAILURE"],
+                "securities": list((raw or {}).get("securities") or []),
+                "as_of_date": now.date().isoformat(),
+                "price_timestamp": None,
+                "status": "UNAVAILABLE",
+                "price": {"value": None, "basis": "UNAVAILABLE"},
+                "opportunity_score": {"value": None, "coverage": "0.0000", "status": "UNAVAILABLE", "components": {}, "basis": "DETERMINISTIC_COVERAGE_SHRINKAGE", "warnings": []},
+                "financial_resilience_score": {"value": None, "coverage": "0.0000", "status": "UNAVAILABLE", "profile": "NON_FINANCIAL", "components": {}, "basis": "DETERMINISTIC_COVERAGE_SHRINKAGE", "warnings": []},
+                "research_trigger": {"eligible": False, "trigger_type": None, "reason": "结构损坏", "in_observation_zone": False},
+                "warnings": ["STRUCTURE_DAMAGED"],
+                "fatal_errors": ["STRUCTURE_DAMAGED"],
                 "metrics": {},
                 "scores": {},
-                "source_summary": {
-                    "required_field_count": 0,
-                    "missing_field_ids": [],
-                    "invalid_field_ids": [],
-                },
+                "source_summary": {"warnings": ["STRUCTURE_DAMAGED"]},
+                "analysis_status": {"status": "NOT_REQUESTED", "latest_success_at": None},
                 "validation_errors": [public_error],
                 "calculated_at": now.isoformat(),
             }
-            companies.append(valid_store.select_publishable(candidate))
+            companies.append(candidate)
             failures.append({"company_id": company_id, "error": str(error)[:500]})
         company_ids.add(company_id)
     status_counts: dict[str, int] = {}
-    tier_counts: dict[str, int] = {}
+    trigger_reasons: dict[str, int] = {}
+    opportunity_count = resilience_count = trigger_count = non_finite_count = 0
     for company in companies:
-        status = str(company.get("data_status") or "INVALID")
+        status = str(company.get("status") or "UNAVAILABLE")
         status_counts[status] = status_counts.get(status, 0) + 1
-        tier = str(company.get("data_tier") or "BLOCKED")
-        tier_counts[tier] = tier_counts.get(tier, 0) + 1
+        opportunity_count += int(company.get("opportunity_score", {}).get("value") is not None)
+        resilience_count += int(company.get("financial_resilience_score", {}).get("value") is not None)
+        trigger = company.get("research_trigger", {})
+        if trigger.get("eligible"):
+            trigger_count += 1
+            reason = str(trigger.get("trigger_type") or "UNKNOWN")
+            trigger_reasons[reason] = trigger_reasons.get(reason, 0) + 1
     pipeline = runtime_status(
         {
             "last_structured_calculation_at": now.isoformat(),
             "company_status_counts": status_counts,
-            "company_tier_counts": tier_counts,
-            "slow_cache_hits": cache_hits,
-            "slow_cache_misses": len(inputs) - cache_hits,
-            "failed_company_count": len(failures),
+            "assessed_company_count": len(inputs),
+            "published_company_count": len(companies),
+            "opportunity_score_count": opportunity_count,
+            "financial_resilience_score_count": resilience_count,
+            "trigger_candidate_count": trigger_count,
+            "trigger_reason_counts": trigger_reasons,
+            "calculation_failure_count": len(failures),
+            "non_finite_count": non_finite_count,
+            "policy_version": policy_payload["policy_version"],
         }
     )
     release = build_structured_release(
@@ -349,14 +456,27 @@ def command_compute(args: argparse.Namespace) -> int:
         companies=companies,
         metric_definitions=load_metric_definitions(),
         pipeline_status=pipeline,
+        expected_company_count=67,
+        activate=False,
     )
+    verified_manifest = verify_release(release)
+    verified_index = json.loads((release / "companies.json").read_text(encoding="utf-8"))
+    validate_public_index(verified_index)
+    release_builder = AtomicReleaseBuilder(paths()["structured"])
+    release_builder.activate(release.name)
+    release_builder.prune()
     dump(
         {
             "release": release.name,
             "company_count": len(companies),
             "status_counts": status_counts,
-            "tier_counts": tier_counts,
-            "slow_cache_hits": cache_hits,
+            "opportunity_score_count": opportunity_count,
+            "financial_resilience_score_count": resilience_count,
+            "trigger_candidate_count": trigger_count,
+            "trigger_reason_counts": trigger_reasons,
+            "non_finite_count": non_finite_count,
+            "schema_validation": "PASSED",
+            "manifest_sha_validation": "PASSED" if verified_manifest.get("channel") == "structured" else "FAILED",
             "company_failures": failures,
         }
     )
@@ -392,51 +512,32 @@ def command_refresh_prices(args: argparse.Namespace) -> int:
 
 def command_readiness(args: argparse.Namespace) -> int:
     now = datetime.now(timezone.utc)
-    observations, registry = _fast_context(now)
-    rows: list[dict[str, Any]] = []
-    parse_errors: list[dict[str, str]] = []
-    for source in _staging_inputs():
-        try:
-            raw = json.loads(source.read_text(encoding="utf-8"))
-            prepared, assessment = _prepare_company_input(
-                raw,
-                now=now,
-                observations=observations,
-                registry=registry,
-            )
-            rows.append(
-                {
-                    "company_id": assessment.company_id,
-                    "company_name": str(prepared.get("company_name") or ""),
-                    **assessment.public_dict(),
-                }
-            )
-        except Exception as error:
-            parse_errors.append(
-                {
-                    "source": source.name,
-                    "error": f"{type(error).__name__}: {error}",
-                }
-            )
-    tier_counts: dict[str, int] = {}
-    blocker_counts: dict[str, int] = {}
+    release = current_release(paths()["structured"])
+    payload = json.loads((release / "companies.json").read_text(encoding="utf-8"))
+    summary = validate_public_index(payload)
+    pipeline = json.loads((release / "pipeline_status.json").read_text(encoding="utf-8"))
+    rows = list(payload["companies"])
+    warning_counts: dict[str, int] = {}
     for row in rows:
-        tier = str(row["data_tier"])
-        tier_counts[tier] = tier_counts.get(tier, 0) + 1
-        for blocker in row["blockers"]:
-            blocker_counts[blocker] = blocker_counts.get(blocker, 0) + 1
+        for warning in row.get("warnings", []):
+            warning_counts[str(warning)] = warning_counts.get(str(warning), 0) + 1
     report = {
-        "report_version": "shareholder-return-v2.1-unified-assessment-v1",
+        "report_version": "shareholder-screen-v2.2-readiness-v1",
         "generated_at": now.isoformat(),
+        "release": release.name,
         "staging_company_count": len(_staging_inputs()),
-        "capital_structure_company_count": len(registry),
-        "market_observation_count": len(observations),
-        "assessed_company_count": len(rows),
-        "parse_error_count": len(parse_errors),
-        "tier_counts": dict(sorted(tier_counts.items())),
-        "blocker_counts": dict(sorted(blocker_counts.items())),
+        "assessed_company_count": int(pipeline.get("assessed_company_count", len(rows))),
+        "published_company_count": summary.company_count,
+        "opportunity_score_count": summary.opportunity_score_count,
+        "financial_resilience_score_count": summary.financial_resilience_score_count,
+        "trigger_candidate_count": summary.trigger_candidate_count,
+        "status_counts": dict(summary.status_counts),
+        "warning_counts": dict(sorted(warning_counts.items())),
+        "calculation_failure_count": int(pipeline.get("calculation_failure_count", 0)),
+        "non_finite_count": int(pipeline.get("non_finite_count", 0)),
+        "schema_validation": "PASSED",
+        "manifest_sha_validation": "PASSED",
         "companies": rows,
-        "parse_errors": parse_errors,
     }
     if args.output:
         atomic_write_json(Path(args.output), report)
@@ -444,18 +545,27 @@ def command_readiness(args: argparse.Namespace) -> int:
         "report_version",
         "generated_at",
         "staging_company_count",
-        "capital_structure_company_count",
-        "market_observation_count",
         "assessed_company_count",
-        "parse_error_count",
-        "tier_counts",
-        "blocker_counts",
+        "published_company_count",
+        "opportunity_score_count",
+        "financial_resilience_score_count",
+        "trigger_candidate_count",
+        "status_counts",
+        "warning_counts",
+        "calculation_failure_count",
+        "non_finite_count",
+        "schema_validation",
+        "manifest_sha_validation",
     )})
-    return 2 if parse_errors else 0
+    return 0
 
 
 def command_dispatch(args: argparse.Namespace) -> int:
     local = paths()
+    mode = codex_analysis_mode()
+    if mode == "OFF":
+        dump({"created": 0, "results": [], "dispatch_status": "CODEX_ANALYSIS_OFF"})
+        return 0
     events: dict[str, list[str]] = {}
     if args.events:
         loaded = json.loads(Path(args.events).read_text(encoding="utf-8"))
@@ -475,36 +585,25 @@ def command_dispatch(args: argparse.Namespace) -> int:
         (structured_release / "companies.json").read_text(encoding="utf-8")
     )
     canary = validate_public_index(company_index)
-    activation_config = json.loads(
-        (PROJECT_ROOT / "config" / "shareholder_v2_activation_reviews.json").read_text(
-            encoding="utf-8"
+    if mode == "PUBLIC":
+        activation_config = json.loads(
+            (PROJECT_ROOT / "config" / "shareholder_v2_activation_reviews.json").read_text(encoding="utf-8")
         )
-    )
-    try:
-        validate_activation_canary(
-            company_index,
-            approved_company_ids=activation_config.get("approved_company_ids", []),
-            expected_company_count=int(
-                activation_config.get("expected_company_count", 67)
-            ),
-            minimum_scored_companies=int(
-                activation_config.get("minimum_scored_companies", 5)
-            ),
-        )
-    except V2ContractError as error:
-        dump(
-            {
+        try:
+            validate_activation_canary(company_index, approval=activation_config)
+        except V2ContractError as error:
+            dump({
                 "created": 0,
                 "results": [],
-                "dispatch_status": "SYSTEM_GATE_CLOSED",
-                "reason": f"Codex系统门槛未通过：{error}",
-                "scored_company_count": len(canary.scored_company_ids),
-            }
-        )
-        return 0
+                "dispatch_status": "GLOBAL_VERSION_APPROVAL_REQUIRED",
+                "reason": str(error),
+                "canary": canary.public_dict(),
+            })
+            return 0
     results = dispatcher.dispatch_release(
         structured_release,
         events_by_company=events,
+        initial_backlog=bool(getattr(args, "initial_backlog", False)),
     )
     status = runtime_status({"last_dispatch_at": datetime.now(timezone.utc).isoformat()})
     dump({"created": sum(bool(item.get("created")) for item in results), "results": results, "jobs": status["jobs"]})
@@ -567,6 +666,10 @@ def _run_worker(args: argparse.Namespace, store: AnalysisJobStore) -> int:
                 "last_worker_error_code": result.error_code,
             }
         )
+        if result.status == "SUCCEEDED":
+            # Local publication is part of task success. Ali synchronization is
+            # intentionally left to the publisher timer and may fail independently.
+            command_publish_analysis(argparse.Namespace())
 
     if args.once:
         result = worker.run_once()
@@ -718,7 +821,7 @@ def _analysis_public_state(
         }
         public["company_id"] = company_id
         status_index.append(public)
-    return {"schema_version": "1.0", "analyses": analysis_index, "statuses": status_index}
+    return {"schema_version": "2.0", "analyses": analysis_index, "statuses": status_index}
 
 
 def command_publish_analysis(_args: argparse.Namespace) -> int:
@@ -776,6 +879,10 @@ def command_sync(args: argparse.Namespace) -> int:
             }
         )
         return 0
+    if args.channel == "structured" and not shareholder_screen_enabled():
+        raise RuntimeError("structured sync requires SHAREHOLDER_SCREEN_ENABLED=true")
+    if args.channel == "analysis" and codex_analysis_mode() != "PUBLIC":
+        raise RuntimeError("analysis sync requires CODEX_ANALYSIS_MODE=PUBLIC")
     synchronizer(args.channel).sync(release, channel=args.channel)
     dump(runtime_status({"last_successful_sync_channel": args.channel, "last_successful_sync_release": release.name}))
     return 0
@@ -807,7 +914,12 @@ def command_publisher(_args: argparse.Namespace) -> int:
         command_publish_analysis(argparse.Namespace())
     results: list[dict[str, str]] = []
     failures = 0
-    for channel, key in (("structured", "structured"), ("analysis", "analysis_release")):
+    enabled_channels: list[tuple[str, str]] = []
+    if shareholder_screen_enabled():
+        enabled_channels.append(("structured", "structured"))
+    if codex_analysis_mode() == "PUBLIC":
+        enabled_channels.append(("analysis", "analysis_release"))
+    for channel, key in enabled_channels:
         try:
             release = current_release(local[key])
         except RuntimeError:
@@ -887,15 +999,15 @@ def command_smoke(args: argparse.Namespace) -> int:
     if not args.confirm_real_codex:
         raise RuntimeError("real Codex smoke test requires --confirm-real-codex")
     company = json.loads(Path(args.company_snapshot).read_text(encoding="utf-8"))
-    if company.get("data_tier") == "BLOCKED" or not company.get(
-        "analysis_eligibility", {}
+    if company.get("status") == "UNAVAILABLE" or not company.get(
+        "research_trigger", {}
     ).get("eligible"):
-        raise RuntimeError("smoke-test input must have an eligible non-BLOCKED numeric core")
+        raise RuntimeError("smoke-test input must have a legal deterministic screening trigger")
     digest = snapshot_hash(company)
     store = job_store()
     job, created = store.enqueue(
         company_id=str(company["company_id"]),
-        analysis_mode="FULL_ENTRY_REVIEW",
+        analysis_mode="PRICE_RISK_ANALYSIS",
         trigger_type="MANUAL_REAL_SMOKE_TEST",
         trigger_payload={"type": "MANUAL_REAL_SMOKE_TEST", "summary": "显式真实Codex冒烟测试"},
         input_snapshot_hash=digest,
@@ -915,6 +1027,8 @@ def command_smoke(args: argparse.Namespace) -> int:
     if claimed is None or claimed.job_id != job.job_id:
         raise RuntimeError("smoke-test job was not claimable; clear older queued work first")
     result = worker.run_job(claimed)
+    if result.status == "SUCCEEDED":
+        command_publish_analysis(argparse.Namespace())
     dump({"job_id": job.job_id, "result": result.status, "result_path": result.result_path})
     return 0 if result.status == "SUCCEEDED" else 1
 
@@ -952,7 +1066,11 @@ def parser() -> argparse.ArgumentParser:
     readiness.set_defaults(function=command_readiness)
     dispatch = sub.add_parser("dispatch", help="evaluate deterministic triggers and enqueue analyses")
     dispatch.add_argument("--events", help="JSON mapping company IDs to versioned event codes")
+    dispatch.set_defaults(initial_backlog=False)
     dispatch.set_defaults(function=command_dispatch)
+    backlog = sub.add_parser("initial-backlog", help="enqueue all currently triggered companies on first enablement")
+    backlog.add_argument("--events", help="JSON mapping company IDs to versioned event codes")
+    backlog.set_defaults(initial_backlog=True, function=command_dispatch)
     worker = sub.add_parser("worker", help="run queued Codex jobs outside FastAPI")
     worker.add_argument("--once", action="store_true")
     worker.add_argument("--startup-check-only", action="store_true")

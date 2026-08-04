@@ -147,6 +147,11 @@ class MarketObservation:
             "pe": format(self.pe, "f") if self.pe is not None else None,
             "pe_ttm": format(self.pe_ttm, "f") if self.pe_ttm is not None else None,
             "pb": format(self.pb, "f") if self.pb is not None else None,
+            "dividend_yield_ttm_pct": (
+                format(self.dividend_yield_ttm_pct, "f")
+                if self.dividend_yield_ttm_pct is not None
+                else None
+            ),
             "earnings_per_share": (
                 format(self.earnings_per_share, "f")
                 if self.earnings_per_share is not None

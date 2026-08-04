@@ -233,6 +233,37 @@ function publishedDisplay(record, fallback = "数据不足") {
   return record.display || String(record.value);
 }
 
+function screeningRecord(security) {
+  const record = security?.shareholderReturnV2;
+  return record?.schema_version === "shareholder-screen-v2" ? record : null;
+}
+
+function screeningNumber(value, digits = 1, suffix = "") {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? `${parsed.toFixed(digits)}${suffix}` : "数据不足";
+}
+
+function screeningCoverage(record) {
+  const coverageLabel = (value) => value === null || value === undefined || value === ""
+    ? "数据不足"
+    : screeningNumber(Number(value) * 100, 0, "%");
+  const opportunity = coverageLabel(record?.opportunity_score?.coverage);
+  const resilience = coverageLabel(record?.financial_resilience_score?.coverage);
+  return `价格 ${opportunity} · 财务 ${resilience}`;
+}
+
+function screeningValuation(record) {
+  const component = record?.opportunity_score?.components?.valuation;
+  if (!component || component.input_value === null || component.input_value === undefined) return "数据不足";
+  const label = component.metric === "PB" ? "PB" : component.metric?.includes("TTM") ? "PE-TTM" : "PE";
+  return `${label} ${screeningNumber(component.input_value, 2)}`;
+}
+
+function screeningPricePosition(record) {
+  const rank = Number(record?.opportunity_score?.components?.five_year_price_position?.percentile_rank);
+  return Number.isFinite(rank) ? `${(rank * 100).toFixed(1)}%分位` : "数据不足";
+}
+
 function dataStatusLabel(status) {
   return {
     VALID: "有效",
@@ -244,6 +275,10 @@ function dataStatusLabel(status) {
 
 function dataTierLabel(tier) {
   return {
+    READY: "就绪",
+    DATA_LIMITED: "覆盖受限",
+    STALE: "行情过期",
+    UNAVAILABLE: "不可用",
     BLOCKED: "阻断",
     ESTIMATED: "估算",
     CALCULABLE: "可计算",
@@ -1265,6 +1300,32 @@ function v2TableMetric(security, metricId, { score = false } = {}) {
   )}">${escapeHtml(publishedDisplay(record))}</span>`;
 }
 
+function screeningSecurityRow(security, record) {
+  const id = escapeHtml(security.id);
+  const currentPrice = record.price?.value ?? security.quote?.currentPrice ?? security.currentPrice;
+  const dividendYield = record.opportunity_score?.components?.dividend_yield?.input_value;
+  const analysis = record.analysis || record.analysis_status || {};
+  return `
+    <tr data-row-id="${id}" data-security="${id}">
+      <td>
+        <button class="security-name security-link" type="button" data-security="${id}"
+          aria-label="查看 ${escapeHtml(security.name)} 详情">
+          <span class="security-avatar">${escapeHtml(initials(security.name))}</span>
+          <span><strong>${escapeHtml(security.name)}</strong><small>${escapeHtml(security.ticker || "—")} · ${escapeHtml(marketLabel(security.market))}</small></span>
+        </button>
+      </td>
+      <td class="is-numeric">${escapeHtml(formatPrice(Number(currentPrice), record.price?.currency || security.currency))}</td>
+      <td class="is-numeric">${escapeHtml(screeningNumber(dividendYield, 2, "%"))}</td>
+      <td class="is-numeric">${escapeHtml(screeningValuation(record))}</td>
+      <td class="is-numeric">${escapeHtml(screeningPricePosition(record))}</td>
+      <td class="is-numeric"><strong>${escapeHtml(screeningNumber(record.opportunity_score?.value))}</strong></td>
+      <td class="is-numeric"><strong>${escapeHtml(screeningNumber(record.financial_resilience_score?.value))}</strong></td>
+      <td>${escapeHtml(screeningCoverage(record))}</td>
+      <td><span class="data-tier is-${escapeHtml(String(record.status || "unavailable").toLowerCase())}">${escapeHtml(dataTierLabel(record.status))}</span><br><small>${escapeHtml(analysisStatusLabel(analysis))}</small></td>
+      <td>${escapeHtml(analysis.one_sentence_conclusion || "暂无合法报告")}</td>
+    </tr>`;
+}
+
 function securityRow(security) {
   const id = escapeHtml(security.id);
   const currentPrice = security.quote?.currentPrice ?? security.currentPrice;
@@ -1273,6 +1334,8 @@ function securityRow(security) {
   const valuation = valuationBadgeInfo(security.valuationStatus);
   const alert = alertStatus(security.derived?.alertStatus);
   const updated = security.quote?.lastUpdatedAt ?? security.lastUpdate;
+  const screening = screeningRecord(security);
+  if (screening) return screeningSecurityRow(security, screening);
   return `
     <tr data-row-id="${id}" data-security="${id}">
       <td>
@@ -1360,6 +1423,25 @@ function mobileSecurityCard(security) {
   const change = security.quote?.dailyChangePct ?? security.dailyChangePct;
   const distance = security.derived?.distanceToPreferredPct;
   const target = targetStatus(security.derived?.targetStatus);
+  const screening = screeningRecord(security);
+  if (screening) {
+    const analysis = screening.analysis || screening.analysis_status || {};
+    return `
+      <article class="mobile-security-card" data-row-id="${id}" data-security="${id}" tabindex="0" role="button">
+        <div class="mobile-card-head">
+          <div class="security-name"><span class="security-avatar">${escapeHtml(initials(security.name))}</span><span><strong>${escapeHtml(security.name)}</strong><small>${escapeHtml(security.ticker)} · ${escapeHtml(marketLabel(security.market))}</small></span></div>
+          <span class="data-tier is-${escapeHtml(String(screening.status || "unavailable").toLowerCase())}">${escapeHtml(dataTierLabel(screening.status))}</span>
+        </div>
+        <div class="mobile-card-values mobile-card-primary-values">
+          <span class="mobile-card-value"><small>现价</small><strong>${escapeHtml(formatPrice(Number(screening.price?.value), screening.price?.currency || security.currency))}</strong></span>
+          <span class="mobile-card-value"><small>TTM股息率</small><strong>${escapeHtml(screeningNumber(screening.opportunity_score?.components?.dividend_yield?.input_value, 2, "%"))}</strong></span>
+          <span class="mobile-card-value"><small>价格机会分</small><strong>${escapeHtml(screeningNumber(screening.opportunity_score?.value))}</strong></span>
+          <span class="mobile-card-value"><small>财务韧性分</small><strong>${escapeHtml(screeningNumber(screening.financial_resilience_score?.value))}</strong></span>
+        </div>
+        <p>${escapeHtml(screeningCoverage(screening))} · ${escapeHtml(analysisStatusLabel(analysis))}</p>
+        <p>${escapeHtml(analysis.one_sentence_conclusion || screening.research_trigger?.reason || "当前未触发研究")}</p>
+      </article>`;
+  }
   return `
     <article class="mobile-security-card" data-row-id="${id}" data-security="${id}"
       tabindex="0" role="button">
@@ -1447,6 +1529,7 @@ function watchlistPanel({
   const total = source.length;
   const rows = securities.map(securityRow).join("");
   const cards = securities.map(mobileSecurityCard).join("");
+  const screeningMode = state.data?.shareholderReturnV2?.schemaVersion === "shareholder-screen-v2";
   return `
     <section class="panel">
       <div class="panel-header">
@@ -1461,7 +1544,9 @@ function watchlistPanel({
         ${filterMarkup()}
       </div>
       <div class="watchlist-disclaimer" role="note">
-        该系统用于筛选和风险研究，不构成收益保证。CR10 是保守情景下的估算基准，不是锁定收益；Codex 报告属于定性风险研究，不替代结构化财务数据。
+        ${screeningMode
+          ? "价格机会分与财务韧性分只用于筛选和排序，不构成买入建议；Codex 报告属于定性风险研究。"
+          : "该系统用于筛选和风险研究，不构成收益保证。CR10 是保守情景下的估算基准，不是锁定收益；Codex 报告属于定性风险研究，不替代结构化财务数据。"}
       </div>
       ${
         securities.length
@@ -1470,6 +1555,18 @@ function watchlistPanel({
               <table class="watchlist-table">
                 <thead>
                   <tr>
+                    ${screeningMode ? `
+                    ${sortableHeader("公司", "name")}
+                    <th>现价</th>
+                    <th>${metricHeader("TTM股息率", "ttm_dividend_yield")}</th>
+                    <th>${metricHeader("PE-TTM / PB", "valuation_anchor")}</th>
+                    <th>${metricHeader("五年价格位置", "five_year_price_position")}</th>
+                    <th>${metricHeader("价格机会分", "opportunity_score")}</th>
+                    <th>${metricHeader("财务韧性分", "financial_resilience_score")}</th>
+                    <th>${metricHeader("数据覆盖度", "screening_coverage")}</th>
+                    <th>研究状态</th>
+                    <th>${metricHeader("最新Codex结论", "codex_risk_analysis")}</th>
+                    ` : `
                     ${sortableHeader("证券名称", "name")}
                     ${sortableHeader("代码", "ticker")}
                     ${sortableHeader("市场", "market")}
@@ -1491,6 +1588,7 @@ function watchlistPanel({
                     <th>${metricHeader("估值状态v1", "legacy_valuation_status_v1")}</th>
                     <th>${metricHeader("提醒状态v1", "legacy_alert_status_v1")}</th>
                     ${sortableHeader("行情更新", "updated", false, "quote_updated_at")}
+                    `}
                   </tr>
                 </thead>
                 <tbody data-security-rows>${rows}</tbody>
@@ -2639,16 +2737,83 @@ function codexReportMarkup(security, detail) {
   if (!analysis) {
     return `<p class="v2-empty">${escapeHtml(analysisStatusLabel(status))}。FastAPI 不会在请求中等待或调用 Codex。</p>`;
   }
+  const risks = Array.isArray(analysis.top_risks) ? analysis.top_risks : [];
+  const sources = Array.isArray(analysis.sources) ? analysis.sources : [];
+  const sourceMarkup = sources.length
+    ? `<ul class="source-summary-list">${sources.map((source) => {
+        let href = "";
+        try {
+          const parsed = new URL(source.url);
+          if (["http:", "https:"].includes(parsed.protocol)) href = parsed.href;
+        } catch {}
+        const label = `${source.publisher || "来源"} · ${source.title || "正式披露"}`;
+        return `<li><strong>${href ? `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>` : escapeHtml(label)}</strong><span>${escapeHtml(source.supports || "")}</span></li>`;
+      }).join("")}</ul>`
+    : '<p class="v2-empty">报告没有可公开来源。</p>';
   return `
     <div class="codex-report-meta">
       <span>任务 ${escapeHtml(analysisStatusLabel(status))}</span>
       <span>结论 ${escapeHtml(analysis.verdict || "—")}</span>
       <span>风险 ${escapeHtml(analysis.risk_overlay || "—")}</span>
-      <span>更新 ${escapeHtml(analysis.as_of_date || "—")}</span>
+      <span>价格判断 ${escapeHtml(analysis.price_assessment || "—")}</span>
+      <span>机会/陷阱 ${escapeHtml(analysis.opportunity_or_trap || "—")}</span>
+      <span>最近成功 ${escapeHtml(analysis.as_of_date || status?.latest_success_at || "—")}</span>
     </div>
     <p class="codex-one-line">${escapeHtml(analysis.one_sentence_conclusion || "")}</p>
+    ${risks.length ? `<div><h5>主要风险</h5><ul class="v2-issue-list">${risks.map((item) => `<li><strong>${escapeHtml(item.risk || String(item))}</strong>${item.monitoring_condition ? `<br><small>${escapeHtml(item.monitoring_condition)}</small>` : ""}</li>`).join("")}</ul></div>` : ""}
     <div class="safe-markdown">${renderSafeMarkdown(analysis.report_markdown || "")}</div>
+    <div><h5>来源</h5>${sourceMarkup}</div>
   `;
+}
+
+function screeningDetailCard(label, value, note = "") {
+  return `<article class="v2-detail-card"><div class="v2-detail-card-head"><small>${escapeHtml(label)}</small></div><strong>${escapeHtml(value)}</strong>${note ? `<span>${escapeHtml(note)}</span>` : ""}</article>`;
+}
+
+function shareholderScreenV2Section(security, detail) {
+  const opportunity = detail.opportunity_score || {};
+  const resilience = detail.financial_resilience_score || {};
+  const dividend = opportunity.components?.dividend_yield || {};
+  const valuation = opportunity.components?.valuation || {};
+  const position = opportunity.components?.five_year_price_position || {};
+  const trigger = detail.research_trigger || {};
+  const warnings = Array.isArray(detail.warnings) ? detail.warnings : [];
+  const sourceSummary = detail.source_summary || {};
+  return `
+    <section class="drawer-section shareholder-v2">
+      <div class="v2-source-boundary">
+        <span>LibertyWatch V2 双支柱筛选</span>
+        <strong class="data-tier is-${escapeHtml(String(detail.status || "unavailable").toLowerCase())}">${escapeHtml(dataTierLabel(detail.status))}</strong>
+        <em class="v2-freshness">${escapeHtml(freshnessLabel(detail.price?.freshness))}</em>
+        <small>${escapeHtml(detail.calculation_version || "shareholder-screen-v2.2.0")}</small>
+      </div>
+      <div class="v2-disclaimer">价格机会分与财务韧性分只负责筛选和排序，不等于买入建议；未知值保持为空，覆盖不足会把分数收缩至50。</div>
+      ${v2DetailSection("价格与估值信号", [
+        screeningDetailCard("现价", formatPrice(Number(detail.price?.value), detail.price?.currency || security.currency), detail.price_timestamp || ""),
+        screeningDetailCard("TTM股息率", screeningNumber(dividend.input_value, 2, "%"), dividend.basis || "VENDOR"),
+        screeningDetailCard("估值锚", screeningValuation(detail), valuation.basis || ""),
+        screeningDetailCard("五年价格位置", screeningPricePosition(detail), `${position.valid_weekly_points || 0}个有效周点`),
+      ])}
+      ${v2DetailSection("双支柱分数", [
+        screeningDetailCard("价格机会分", screeningNumber(opportunity.value), `覆盖 ${screeningNumber(Number(opportunity.coverage) * 100, 0, "%")} · ${opportunity.status || ""}`),
+        screeningDetailCard("财务韧性分", screeningNumber(resilience.value), `覆盖 ${screeningNumber(Number(resilience.coverage) * 100, 0, "%")} · ${resilience.profile || ""}`),
+      ])}
+      <section class="v2-detail-group">
+        <h4>研究触发</h4>
+        <p><strong>${escapeHtml(trigger.eligible ? "已触发" : "未触发")}</strong> · ${escapeHtml(trigger.trigger_type || "—")}</p>
+        <p>${escapeHtml(trigger.reason || "当前未达到确定性研究触发条件")}</p>
+      </section>
+      <section class="v2-detail-group">
+        <h4>数据质量和来源</h4>
+        <p>数据覆盖：${escapeHtml(screeningCoverage(detail))}</p>
+        ${warnings.length ? `<ul class="v2-issue-list">${warnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join("")}</ul>` : '<p class="v2-empty">无额外字段警告。</p>'}
+        ${sourceSummaryMarkup({ source_summary: sourceSummary })}
+      </section>
+      <section class="v2-detail-group codex-analysis-section">
+        <div class="v2-source-boundary"><span>Codex 定性风险分析</span><small>逐公司触发，不修改任何量化分数</small></div>
+        ${codexReportMarkup(security, detail)}
+      </section>
+    </section>`;
 }
 
 function shareholderReturnV2Section(security) {
@@ -2663,6 +2828,9 @@ function shareholderReturnV2Section(security) {
   }
   const companyId = security.issuerId;
   const detail = state.v2CompanyCache.get(companyId) || summary;
+  if (detail.schema_version === "shareholder-screen-v2") {
+    return shareholderScreenV2Section(security, detail);
+  }
   const statusText = dataTierLabel(detail.data_tier);
   const vetoes = Array.isArray(detail.veto_flags) ? detail.veto_flags : [];
   const coverage = detail.coverage_adapter || {};

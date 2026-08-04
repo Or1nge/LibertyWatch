@@ -3,6 +3,59 @@ set -Eeuo pipefail
 
 PROJECT_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 LIBERTY_SOURCE_ROOT="$(cd -- "${PROJECT_ROOT}/.." && pwd)"
+
+if [[ "${1:-}" == "--smoke-only" ]]; then
+  SMOKE_ROOT="${2:-}"
+  if [[ -z "${SMOKE_ROOT}" || "${SMOKE_ROOT}" != /tmp/* || "${SMOKE_ROOT}" == *".."* ]]; then
+    echo "--smoke-only requires an explicit safe /tmp root" >&2
+    exit 2
+  fi
+  SMOKE_RELEASE_ID="incoming-$(date -u +%Y%m%dT%H%M%SZ)-$(sha256sum "${PROJECT_ROOT}/scripts/shareholder_v2.py" | cut -c1-10)"
+  SMOKE_RELEASE="${SMOKE_ROOT}/releases/${SMOKE_RELEASE_ID}"
+  install -d -m 0755 "${SMOKE_RELEASE}/config" "${SMOKE_RELEASE}/scripts/support"
+  cp -a "${PROJECT_ROOT}/liberty_v2" "${PROJECT_ROOT}/analysis" "${SMOKE_RELEASE}/"
+  install -m 0644 \
+    "${PROJECT_ROOT}/config/metric_policy_v2.json" \
+    "${PROJECT_ROOT}/config/metric_definitions_v2.json" \
+    "${PROJECT_ROOT}/config/shareholder_v2_activation_reviews.json" \
+    "${PROJECT_ROOT}/config/issuer_capital_structure_v1.json" \
+    "${PROJECT_ROOT}/config/watchlist.json" \
+    "${SMOKE_RELEASE}/config/"
+  install -m 0644 "${LIBERTY_SOURCE_ROOT}/data/source/companies.json" "${SMOKE_RELEASE}/config/companies_v1.json"
+  install -m 0755 "${PROJECT_ROOT}/scripts/shareholder_v2.py" "${SMOKE_RELEASE}/scripts/"
+  install -m 0755 "${PROJECT_ROOT}"/scripts/support/*.py "${SMOKE_RELEASE}/scripts/support/"
+  python3 -m venv --system-site-packages "${SMOKE_RELEASE}/.venv"
+  SMOKE_RUNTIME="${SMOKE_ROOT}/runtime"
+  env \
+    SHAREHOLDER_SCREEN_ENABLED=false \
+    CODEX_ANALYSIS_MODE=OFF \
+    SHAREHOLDER_V2_LOCAL_ROOT="${SMOKE_RUNTIME}" \
+    SHAREHOLDER_V2_STAGING_DIR="${SMOKE_RUNTIME}/staging" \
+    ANALYSIS_JOB_DB="${SMOKE_RUNTIME}/analysis/jobs.sqlite3" \
+    "${SMOKE_RELEASE}/.venv/bin/python" "${SMOKE_RELEASE}/scripts/shareholder_v2.py" health-check
+  "${SMOKE_RELEASE}/.venv/bin/python" - "${SMOKE_RELEASE}/config/watchlist.json" "${SMOKE_RELEASE}/config/companies_v1.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+watchlist = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+companies = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
+watchlist_ids = {str(row.get("issuerId") or "") for row in watchlist.get("securities", [])}
+company_rows = companies.get("companies", companies) if isinstance(companies, dict) else companies
+company_ids = {str(row.get("issuerId") or row.get("companyId") or row.get("company_id") or "") for row in company_rows}
+watchlist_ids.discard("")
+company_ids.discard("")
+if len(watchlist_ids) != 67 or watchlist_ids != company_ids:
+    raise SystemExit(f"67-company configuration coverage failed: watchlist={len(watchlist_ids)} companies={len(company_ids)}")
+print("incoming release smoke: 67-company configuration coverage passed")
+PY
+  ln -sfn "${SMOKE_RELEASE}" "${SMOKE_ROOT}/.current-${SMOKE_RELEASE_ID}"
+  mv -Tf "${SMOKE_ROOT}/.current-${SMOKE_RELEASE_ID}" "${SMOKE_ROOT}/current"
+  echo "Smoke-only installation passed: ${SMOKE_RELEASE}"
+  echo "Smoke-only current: $(readlink -f "${SMOKE_ROOT}/current")"
+  exit 0
+fi
+
 COLLECTOR_USER="$(stat -c '%U' "${PROJECT_ROOT}")"
 SERVICE_USER="${LIBERTY_SERVICE_USER:-${COLLECTOR_USER}}"
 if [[ "${EUID}" -ne 0 ]]; then
@@ -21,12 +74,17 @@ CODEX_HOME_DIR="${LIBERTY_CODEX_HOME:-${SERVICE_HOME}/.codex}"
 RELEASE_ROOT=/opt/liberty/shareholder-v2
 RELEASE_ID="$(date -u +%Y%m%dT%H%M%SZ)-$(sha256sum "${PROJECT_ROOT}/scripts/shareholder_v2.py" | cut -c1-10)"
 RELEASE_DIR="${RELEASE_ROOT}/releases/${RELEASE_ID}"
+PREVIOUS_RELEASE=""
+if [[ -L "${RELEASE_ROOT}/current" ]]; then
+  PREVIOUS_RELEASE="$(readlink -f "${RELEASE_ROOT}/current")"
+fi
 install -d -m 0755 "${RELEASE_DIR}/config" "${RELEASE_DIR}/scripts/support"
 cp -a "${PROJECT_ROOT}/liberty_v2" "${PROJECT_ROOT}/analysis" "${RELEASE_DIR}/"
 install -m 0644 \
   "${PROJECT_ROOT}/config/metric_policy_v2.json" \
   "${PROJECT_ROOT}/config/metric_definitions_v2.json" \
   "${PROJECT_ROOT}/config/shareholder_v2_activation_reviews.json" \
+  "${PROJECT_ROOT}/config/issuer_capital_structure_v1.json" \
   "${PROJECT_ROOT}/config/watchlist.json" \
   "${RELEASE_DIR}/config/"
 install -m 0644 "${LIBERTY_SOURCE_ROOT}/data/source/companies.json" "${RELEASE_DIR}/config/companies_v1.json"
@@ -38,8 +96,6 @@ python3 -m venv "${RELEASE_DIR}/.venv"
 "${RELEASE_DIR}/.venv/bin/pip" install --disable-pip-version-check -r "${RELEASE_DIR}/requirements-worker.txt"
 chown -R root:root "${RELEASE_DIR}"
 find "${RELEASE_DIR}" -type d -exec chmod 0755 {} +
-ln -sfn "${RELEASE_DIR}" "${RELEASE_ROOT}/.current-${RELEASE_ID}"
-mv -Tf "${RELEASE_ROOT}/.current-${RELEASE_ID}" "${RELEASE_ROOT}/current"
 
 install -d -m 0750 -o root -g root /etc/liberty
 install -d -m 0710 -o "${SERVICE_USER}" -g "${SERVICE_GROUP}" /var/lib/liberty
@@ -58,6 +114,44 @@ else
   chown "${SERVICE_USER}:${SERVICE_GROUP}" "${JOB_DATABASE}"
   chmod 0660 "${JOB_DATABASE}"
 fi
+
+# The incoming release must prove that its own interpreter and copied configuration
+# are healthy before it is allowed to replace the active symlink.
+runuser -u "${SERVICE_USER}" -- env \
+  HOME="${SERVICE_HOME}" \
+  CODEX_HOME="${CODEX_HOME_DIR}" \
+  SHAREHOLDER_SCREEN_ENABLED=false \
+  CODEX_ANALYSIS_MODE=OFF \
+  SHAREHOLDER_V2_LOCAL_ROOT=/var/lib/liberty/shareholder-v2 \
+  SHAREHOLDER_V2_STAGING_DIR=/var/lib/liberty/shareholder-v2/staging \
+  ANALYSIS_JOB_DB="${JOB_DATABASE}" \
+  "${RELEASE_DIR}/.venv/bin/python" "${RELEASE_DIR}/scripts/shareholder_v2.py" health-check
+"${RELEASE_DIR}/.venv/bin/python" - "${RELEASE_DIR}/config/watchlist.json" "${RELEASE_DIR}/config/companies_v1.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+watchlist = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+companies = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
+watchlist_ids = {str(row.get("issuerId") or "") for row in watchlist.get("securities", [])}
+company_rows = companies.get("companies", companies) if isinstance(companies, dict) else companies
+company_ids = {
+    str(row.get("issuerId") or row.get("companyId") or row.get("company_id") or "")
+    for row in company_rows
+}
+watchlist_ids.discard("")
+company_ids.discard("")
+if len(watchlist_ids) != 67 or len(company_ids) != 67 or watchlist_ids != company_ids:
+    raise SystemExit(
+        f"67-company configuration coverage failed: watchlist={len(watchlist_ids)} "
+        f"companies={len(company_ids)} symmetric_diff={sorted(watchlist_ids ^ company_ids)}"
+    )
+print("incoming release smoke: 67-company configuration coverage passed")
+PY
+
+ln -sfn "${RELEASE_DIR}" "${RELEASE_ROOT}/.current-${RELEASE_ID}"
+mv -Tf "${RELEASE_ROOT}/.current-${RELEASE_ID}" "${RELEASE_ROOT}/current"
+echo "Incoming release smoke passed; atomically switched current from ${PREVIOUS_RELEASE:-none}."
 if [[ ! -f /etc/liberty/shareholder-v2.env ]]; then
   install -m 0600 -o root -g root "${PROJECT_ROOT}/.env.example" /etc/liberty/shareholder-v2.env
   echo "Created /etc/liberty/shareholder-v2.env; fill non-secret host/path values and provision Codex auth before starting services."

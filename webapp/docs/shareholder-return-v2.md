@@ -1,5 +1,9 @@
 # 股东回报 v2：指标、字段与迁移
 
+> 本页记录旧`shareholder-return-v2.1.0`公式与回放边界。自2026-08-04起公开主
+> 路径为[`shareholder-screen-v2.2.0`](shareholder-screen-v2.2.md)；SSY、CR10、
+> RI、ERI与SEEV不再用于公开release、activation canary或Codex eligibility。
+
 ## 唯一指标中心
 
 `config/metric_definitions_v2.json` 是 API 和前端解释文字的唯一来源；

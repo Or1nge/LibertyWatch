@@ -1,5 +1,10 @@
 # 部署、同步、故障排查与回滚
 
+> 当前生产开关为`SHAREHOLDER_SCREEN_ENABLED=false|true`与
+> `CODEX_ANALYSIS_MODE=OFF|INTERNAL|PUBLIC`，默认分别为`false`和`OFF`；旧
+> `SHAREHOLDER_RETURN_V2_ENABLED=true`不会自动迁移。当前canary、安装态smoke和
+> 激活顺序见[`shareholder-screen-v2.2.md`](shareholder-screen-v2.2.md)。
+
 ## Linux 首次安装
 
 先检查 `.env.example`，再执行：
@@ -51,7 +56,8 @@ SHAREHOLDER_V2_QUOTE_SNAPSHOT=/var/lib/liberty/shareholder-v2/inputs/latest_snap
 
 | 变量 | 用途 |
 |---|---|
-| `SHAREHOLDER_RETURN_V2_ENABLED` | FastAPI v2功能开关；默认`false`，只有明确切换时设为`true` |
+| `SHAREHOLDER_SCREEN_ENABLED` | 67家公司复合筛选公开开关；默认`false` |
+| `CODEX_ANALYSIS_MODE` | `OFF`不建任务；`INTERNAL`只生成本地release；`PUBLIC`允许Ali展示 |
 | `SHAREHOLDER_V2_CANARY_INDEX` | 显式开启v2时接受激活检查的本地`companies.json`；默认指向本地structured current |
 | `SHAREHOLDER_V2_LOCAL_ROOT` / `STAGING_DIR` | Linux数据与标准化输入 |
 | `SHAREHOLDER_V2_QUOTE_SNAPSHOT` | 行情快变量交接文件 |
@@ -88,7 +94,7 @@ sudo -u <LIBERTY_SERVICE_USER> /opt/liberty/shareholder-v2/current/.venv/bin/pyt
 
 `shareholder-data-pipeline.timer` 工作日每2分钟更新快变量，慢输入哈希未变时使用
 缓存；成功后触发 dispatcher。worker 常驻但不进入 FastAPI 请求线程。publisher
-每5分钟只同步变更或等待重试的 channel。
+每2分钟只同步变更或等待重试的 channel。
 
 本地诊断：
 

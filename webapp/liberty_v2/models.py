@@ -37,6 +37,13 @@ class CompanyDataTier(str, Enum):
     VERIFIED = "VERIFIED"
 
 
+class CompanyScreenStatus(str, Enum):
+    READY = "READY"
+    DATA_LIMITED = "DATA_LIMITED"
+    STALE = "STALE"
+    UNAVAILABLE = "UNAVAILABLE"
+
+
 class MetricBasis(str, Enum):
     DIRECT = "DIRECT"
     DERIVED = "DERIVED"
