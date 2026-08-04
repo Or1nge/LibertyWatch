@@ -1,9 +1,9 @@
 {
   "schema_version": "shareholder-screen-v2-global-approval-v1",
   "calculation_version": "shareholder-screen-v2.2.0",
-  "metric_policy_sha256": "409fe0f21a0d49e83468be06a11f93a21a5af100cb6f564e2cb63f650f381298",
+  "metric_policy_sha256": "94dc670da10df88339af1afe27977daff840a3c2baa40b127dabb4999274a8a6",
   "public_contract_sha256": "ac7a9fac22d66fb7f296a52b2cc40d510094361358f8287c1250e3663b92597e",
-  "approved_at": "2026-08-04T11:53:00Z",
-  "reviewer": "橘（用户明确授权生产部署，Codex执行）",
-  "notes": "Approved after the 67-company production shadow release 20260804T115224Z-e10713e38dfe passed schema, manifest, SHA, finite-value and readiness checks."
+  "approved_at": "2026-08-04T16:09:33Z",
+  "reviewer": "橘（沿用既有生产授权；用户明确要求更新风险提示词并合入主线）",
+  "notes": "Reapproved only for the risk-review-v2.0.2 prompt-version field change; screening formulas, public contract and the validated 67-company release remain unchanged."
 }
