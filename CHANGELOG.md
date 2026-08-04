@@ -2,6 +2,14 @@
 
 ## 2026-08-04
 
+- 生产安装、影子计算与阿里验收完成：本机正式结构化release
+  `20260804T121601Z-3c07e8154f9b`已原子同步，阿里Web release
+  `20260804T121500Z-fd1086718d`为healthy；公网逐一验证67个公司详情均返回200，
+  67/67 watchlist enrichment、双分数、全局canary、manifest/SHA、零非有限数和零计算
+  失败全部通过。当前安全门禁为`SHAREHOLDER_SCREEN_ENABLED=true`、
+  `CODEX_ANALYSIS_MODE=OFF`，数据与publisher timer已启用，Codex worker在批量外发
+  获得单独授权前保持disabled。修复了阿里Python 3.6激活助手、公开release权限、
+  bind mount可移植相对链接、Web镜像漏装`liberty_v2`及远端canary解释器边界。
 - 海尔智家`A600690`真实INTERNAL Codex smoke完成模型推理、本地latest和analysis
   release；真实接口暴露并修复Structured Outputs要求枚举/常量显式类型、且不接受
   `format: uri`的问题。事后审计发现模型把4个冻结输入伪装为`invalid.local`来源，
