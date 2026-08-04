@@ -61,6 +61,8 @@ SHAREHOLDER_V2_QUOTE_SNAPSHOT=/var/lib/liberty/shareholder-v2/inputs/latest_snap
 | `SHAREHOLDER_V2_CANARY_INDEX` | 显式开启v2时接受激活检查的本地`companies.json`；默认指向本地structured current |
 | `SHAREHOLDER_V2_LOCAL_ROOT` / `STAGING_DIR` | Linux数据与标准化输入 |
 | `SHAREHOLDER_V2_QUOTE_SNAPSHOT` | 行情快变量交接文件 |
+| `SHAREHOLDER_V2_WEEKLY_HISTORY` | 前复权周线输入；缺失标的保持`DATA_LIMITED` |
+| `SHAREHOLDER_V2_FUTU_FINANCIAL_EVIDENCE` | 生产侧Futu详细财务不可变证据目录 |
 | `ANALYSIS_JOB_DB` | SQLite任务库 |
 | `CODEX_BINARY` / `CODEX_TIMEOUT_SECONDS` | 固定CLI与超时 |
 | `CODEX_GLOBAL_CONCURRENCY` | 默认1 |
