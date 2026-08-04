@@ -159,12 +159,14 @@ set +a
 部署脚本先跑全量测试，远端Compose健康和公网API检查均通过后才切换代码
 `current`；失败自动恢复上一代码release。
 
-当且仅当显式设置`SHAREHOLDER_RETURN_V2_ENABLED=true`时，部署还会在任何远端写入
-前运行激活canary，并在Ali回环与公网API重复验证：release必须为v2.1
-`VALID_RELEASE`，恰有67条合法记录，至少5家公司同时发布RI/ERI，所有分数为
-0—100有限数，且全部可评分公司已列入
-`config/shareholder_v2_activation_reviews.json`。当前审批清单为空，因此误设
-`true`会在本地直接失败；`false`的常规v1代码dry-run不受影响。
+当且仅当显式设置`SHAREHOLDER_SCREEN_ENABLED=true`时，部署还会在任何远端写入
+前运行激活canary，并在Ali回环与公网API重复验证：release必须为v2.2
+`shareholder-screen-v2`，恰有67条合法记录，两类分数均为0—100有限数，manifest
+与逐文件SHA均通过。全局审批还必须在
+`config/shareholder_v2_activation_reviews.json`中绑定准确的计算版本、policy SHA、
+public contract SHA、批准时间与复核人。当前审批文件默认关闭，因此误设`true`会在
+本地直接失败；旧`SHAREHOLDER_RETURN_V2_ENABLED`不会开启新版。Codex仍由独立的
+`CODEX_ANALYSIS_MODE=OFF|INTERNAL|PUBLIC`控制。
 
 ## 回滚
 
