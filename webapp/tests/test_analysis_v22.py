@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import stat
 from pathlib import Path
 
 import pytest
@@ -50,6 +51,19 @@ def test_worker_command_supports_immutable_non_git_release(tmp_path: Path) -> No
     assert command[command.index("exec") + 1] == "--skip-git-repo-check"
     assert command[command.index("--sandbox") + 1] == "read-only"
     assert command[command.index("--ask-for-approval") + 1] == "never"
+
+
+def test_success_archive_does_not_copy_setgid_input_metadata(tmp_path: Path) -> None:
+    store, worker, job_id = build_worker(tmp_path)
+    input_dir = tmp_path / "jobs" / job_id / "input"
+    input_dir.chmod(0o2700)
+    result = worker.run_once()
+    assert result and result.status == "SUCCEEDED"
+    archived_input = tmp_path / "output" / "issuer-v22" / "runs" / job_id / "input"
+    assert archived_input.stat().st_mode & stat.S_ISGID == 0
+    assert {path.name: path.read_bytes() for path in archived_input.iterdir()} == {
+        path.name: path.read_bytes() for path in input_dir.iterdir()
+    }
 
 
 def test_fake_codex_v2_schema_and_local_latest(tmp_path: Path) -> None:

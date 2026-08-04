@@ -23,6 +23,8 @@ systemd都把项目代码设为只读，只开放分析、状态和选定CODEX_H
 的inputs/staging/cache/snapshots/published目录。CLI仍使用ephemeral、read-only
 sandbox、PrivateTmp和输出白名单。
 CLI子进程只继承认证、代理、CA、locale和临时目录白名单，不继承发布/数据库变量。
+成功归档按字节复制已校验的冻结输入，不继承源目录的setgid等权限元数据，以兼容
+systemd的`RestrictSUIDSGID`加固；归档内容仍由冻结输入SHA和最终产物SHA校验。
 当前 CLI 对应命令顺序为：
 
 ```bash
