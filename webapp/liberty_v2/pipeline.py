@@ -12,28 +12,36 @@ from .calculations import (
     buyback_quality_score,
     company_market_cap,
     conservative_growth_contribution,
+    conservative_growth_contribution_v21,
     conservative_return_10y,
     coverage_score,
     effective_distribution,
+    effective_distribution_v21,
     eligible_buyback,
     entry_risk_index,
+    entry_risk_index_v21,
     historical_conservative_distribution,
     history_stability_score,
     median_five_year_distribution,
     payout_quality_score,
+    payout_quality_score_v21,
     recent_trend_score,
     recent_two_year_distribution,
     recommendation_class,
     recommendation_index,
+    recommendation_index_v21,
     return_score,
+    return_score_v21,
     return_type,
     robust_organic_growth,
     security_prices_at_four_percent,
     shareholder_yield,
+    sustainable_distribution_non_financial_v21,
     to_decimal,
     valuation_drag,
     winsorized_ten_year_distribution,
 )
+from .assessment import CompanyAssessment
 from .constants import CALCULATION_VERSION, METRIC_DEFINITION_VERSION, SCHEMA_VERSION
 from .coverage import (
     BankCapitalAdapter,
@@ -47,11 +55,13 @@ from .coverage import (
 )
 from .models import (
     AnnualDistribution,
+    CompanyDataTier,
     CoverageResult,
     CoverageStatus,
     DataStatus,
     FCFYear,
     IndustryKind,
+    MetricBasis,
     MetricRecord,
     PublicationStatus,
     SecurityClassInput,
@@ -59,6 +69,7 @@ from .models import (
     VetoFlag,
     jsonable,
 )
+from .input_resolution import eligible_coverage_rows, eligible_distribution_rows
 from .veto import evaluate_vetoes
 from .validation import (
     merge_validation_results,
@@ -144,11 +155,21 @@ def metric(
     kind: str = "number",
     reason: str | None = None,
     unit: str | None = None,
+    basis: MetricBasis | str | None = None,
+    warning: str | None = None,
 ) -> MetricRecord:
     if status is None:
         status = "INSUFFICIENT_DATA" if value is None else ("KNOWN_ZERO" if value == ZERO else "VALID")
     display = _display(value, kind=kind) if value is not None else (reason or "数据不足")
-    return MetricRecord(value=value, status=status, display=display, reason=reason, unit=unit)
+    return MetricRecord(
+        value=value,
+        status=status,
+        display=display,
+        reason=reason,
+        unit=unit,
+        basis=basis,
+        warning=warning,
+    )
 
 
 @dataclass(frozen=True)
@@ -168,6 +189,36 @@ class SlowVariables:
     business_durability: Decimal | None
     governance: Decimal | None
     qualitative_overlay_pending: bool
+    errors: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class V21SlowVariables:
+    distribution_history: tuple[Mapping[str, Any], ...]
+    annual_effective_distributions: tuple[tuple[int, Decimal], ...]
+    r2: Decimal | None
+    m5: Decimal | None
+    t10: Decimal | None
+    historical_distribution: Decimal | None
+    fcf_history: tuple[tuple[int, Decimal], ...]
+    simplified_fcf: bool
+    fcf_capacity: Decimal | None
+    sustainable_distribution: Decimal | None
+    coverage_ratio: Decimal | None
+    organic_growth: Decimal | None
+    conservative_growth: Decimal
+    coverage_component: Decimal | None
+    trend_component: Decimal | None
+    stability_component: Decimal | None
+    balance_component: Decimal | None
+    payout_quality: Decimal | None
+    business_durability: Decimal | None
+    governance: Decimal | None
+    entry_risk_index: Decimal | None
+    risk_components: Mapping[str, Decimal]
+    veto_flags: tuple[VetoFlag, ...]
+    unknown_veto_uplift: Decimal
+    warnings: tuple[str, ...]
     errors: tuple[str, ...]
 
 
@@ -471,6 +522,308 @@ def _derive_veto_inputs(
                 "industry_adapters", "insurance", "minimum_solvency_buffer"
             )
     return values, errors
+
+
+def _balance_sheet_score_v21(assessment: CompanyAssessment) -> Decimal | None:
+    balance = assessment.balance_sheet
+    if not balance.available or balance.value is None:
+        return None
+    if balance.kind == "NET_CASH":
+        return Decimal("100")
+    value = to_decimal(balance.value)
+    if balance.kind == "NET_DEBT_TO_EQUITY":
+        if value <= Decimal("0.30"):
+            return Decimal("85")
+        if value <= Decimal("0.60"):
+            return Decimal("70")
+        if value <= Decimal("1.00"):
+            return Decimal("50")
+        return Decimal("20")
+    if balance.kind == "DEBT_TO_ASSETS_PROXY":
+        if value <= Decimal("0.40"):
+            return Decimal("80")
+        if value <= Decimal("0.60"):
+            return Decimal("60")
+        if value <= Decimal("0.75"):
+            return Decimal("40")
+        return Decimal("20")
+    return None
+
+
+def _latest_continuous_fcf(
+    rows_newest_first: Sequence[tuple[int, Decimal]],
+) -> list[Decimal]:
+    if not rows_newest_first:
+        return []
+    selected = [rows_newest_first[0]]
+    for year, value in rows_newest_first[1:]:
+        if year != selected[-1][0] - 1:
+            break
+        selected.append((year, value))
+    return [value for _year, value in reversed(selected)]
+
+
+def compute_slow_variables_v21(
+    raw: Mapping[str, Any],
+    assessment: CompanyAssessment,
+    *,
+    on_date: date | None = None,
+) -> V21SlowVariables:
+    """Compute the history-dependent v2.1 surface without fast market inputs."""
+
+    current_date = on_date or date.today()
+    warnings = list(assessment.warnings)
+    errors: list[str] = []
+    distribution_history: list[dict[str, Any]] = []
+    effective: list[tuple[int, Decimal]] = []
+    rows = eligible_distribution_rows(raw, on_date=current_date)
+    selected_distribution_years = set(assessment.input_plan.distribution_years)
+    for item in rows:
+        year = int(item["fiscal_year"])
+        if year not in selected_distribution_years:
+            continue
+        ordinary = _decimal_or_none(item.get("ordinary_dividend"))
+        if ordinary is None and item.get("ordinary_dividend_status") == "NO_DISTRIBUTION":
+            ordinary = ZERO
+        gross = _decimal_or_none(item.get("gross_cancelled_buyback"))
+        cancelled = _decimal_or_none(item.get("cancelled_shares"))
+        net_reduction = _decimal_or_none(item.get("diluted_net_share_reduction"))
+        verified_buyback: Decimal | None = None
+        buyback_basis = MetricBasis.CONSERVATIVE_DEFAULT
+        buyback_warning: str | None = None
+        if gross is not None and cancelled is not None and net_reduction is not None:
+            try:
+                verified_buyback = eligible_buyback(gross, cancelled, net_reduction)
+                buyback_basis = MetricBasis.DERIVED
+            except CalculationError as error:
+                errors.append(f"buyback:{year}:{error}")
+        else:
+            buyback_warning = "UNVERIFIED_BUYBACK_NOT_CREDITED"
+            warnings.append(buyback_warning)
+        try:
+            amount = effective_distribution_v21(ordinary, verified_buyback)
+            effective.append((year, amount))
+        except CalculationError as error:
+            amount = None
+            errors.append(f"distribution:{year}:{error}")
+        distribution_history.append(
+            {
+                "fiscal_year": year,
+                "ordinary_dividend": metric(
+                    ordinary,
+                    reason="普通现金股息缺失",
+                    unit="CNY",
+                    basis=MetricBasis.DIRECT,
+                ).public_dict(),
+                "eligible_buyback": metric(
+                    verified_buyback,
+                    reason="未经回购注销及稀释股本桥验证，不授予回报贡献",
+                    unit="CNY",
+                    basis=buyback_basis,
+                    warning=buyback_warning,
+                ).public_dict(),
+                "effective_distribution": metric(
+                    amount,
+                    reason="年度有效分配额不可计算",
+                    unit="CNY",
+                    basis=(
+                        MetricBasis.DERIVED
+                        if verified_buyback is not None
+                        else MetricBasis.CONSERVATIVE_DEFAULT
+                    ),
+                    warning=buyback_warning,
+                ).public_dict(),
+            }
+        )
+
+    r2 = m5 = t10 = historical = None
+    values = [value for _year, value in effective]
+    if len(values) >= 2:
+        try:
+            r2 = recent_two_year_distribution(values)
+            m5 = median_five_year_distribution(values)
+            t10 = winsorized_ten_year_distribution(values)
+            historical = historical_conservative_distribution(values)
+        except CalculationError as error:
+            errors.append(f"history:{error}")
+
+    coverage_rows = eligible_coverage_rows(raw, on_date=current_date)
+    try:
+        industry = IndustryKind(str(raw.get("industry_kind") or "UNSUPPORTED"))
+    except ValueError:
+        industry = IndustryKind.UNSUPPORTED
+    if industry is not IndustryKind.NON_FINANCIAL:
+        coverage_rows = []
+    selected_coverage_years = set(assessment.input_plan.coverage_years)
+    coverage_rows = [
+        item
+        for item in coverage_rows
+        if int(item["fiscal_year"]) in selected_coverage_years
+    ][:5]
+    simplified = bool(
+        coverage_rows
+        and any(_decimal_or_none(item.get("lease_principal_repayment")) is None for item in coverage_rows)
+    )
+    fcf_history: list[tuple[int, Decimal]] = []
+    for item in coverage_rows:
+        ocf = _decimal_or_none(item.get("operating_cash_flow"))
+        capex = _decimal_or_none(item.get("capital_expenditure"))
+        lease = _decimal_or_none(item.get("lease_principal_repayment"))
+        if ocf is None or capex is None:
+            continue
+        value = ocf - capex
+        if not simplified:
+            if lease is None:
+                continue
+            value -= lease
+        fcf_history.append((int(item["fiscal_year"]), value))
+    if simplified:
+        warnings.append("SIMPLIFIED_FCF")
+
+    capacity = sustainable = coverage_ratio_value = None
+    if historical is not None and len(fcf_history) >= 2:
+        try:
+            sustainable, capacity = sustainable_distribution_non_financial_v21(
+                historical,
+                [value for _year, value in fcf_history],
+                simplified_fcf=simplified,
+            )
+            coverage_ratio_value = capacity / historical if historical > 0 else None
+        except CalculationError as error:
+            errors.append(f"coverage:{error}")
+
+    continuous_fcf = _latest_continuous_fcf(fcf_history)
+    organic_growth = None
+    conservative_growth = ZERO
+    if len(continuous_fcf) >= 2:
+        try:
+            organic_growth = robust_organic_growth(continuous_fcf)
+            conservative_growth = conservative_growth_contribution_v21(
+                organic_growth,
+                year_count=len(continuous_fcf),
+            )
+        except CalculationError as error:
+            warnings.append(f"GROWTH_DEFAULT_ZERO:{error}")
+    else:
+        warnings.append("GROWTH_DEFAULT_ZERO")
+
+    coverage_component = (
+        coverage_score(coverage_ratio_value)
+        if coverage_ratio_value is not None
+        else None
+    )
+    trend_component = stability_component = None
+    if r2 is not None and m5 is not None and len(effective) >= 2:
+        try:
+            trend_component = recent_trend_score(
+                r2,
+                m5,
+                effective[0][1],
+                effective[1][1],
+            )
+            stability_component = history_stability_score(values)
+        except CalculationError as error:
+            errors.append(f"distribution_score:{error}")
+    balance_component = _balance_sheet_score_v21(assessment)
+    payout = None
+    payout_components = {
+        "coverage": coverage_component,
+        "recent_trend": trend_component,
+        "history_stability": stability_component,
+        "balance_sheet": balance_component,
+    }
+    if all(value is not None for value in payout_components.values()):
+        payout = payout_quality_score_v21(
+            {key: value for key, value in payout_components.items() if value is not None}
+        )
+
+    score_config = raw.get("structured_scores") if isinstance(raw.get("structured_scores"), Mapping) else {}
+    reviewed = raw.get("reviewed_overlay_scores") if isinstance(raw.get("reviewed_overlay_scores"), Mapping) else {}
+    business = _structured_score(score_config.get("business_durability"), current_date)
+    if business is None:
+        business = _structured_score(reviewed.get("business_durability"), current_date)
+    governance = _structured_score(score_config.get("governance_capital_allocation"), current_date)
+    if governance is None:
+        governance = _structured_score(reviewed.get("governance_capital_allocation"), current_date)
+
+    risk_config = raw.get("risk_scores") if isinstance(raw.get("risk_scores"), Mapping) else {}
+    unknown_risk = decimal_value(
+        "entry_risk_uplifts_v21", "unknown_qualitative_default"
+    )
+    structural_cycle = _structured_score(risk_config.get("structural_cycle"), current_date)
+    policy_asset_life = _structured_score(risk_config.get("policy_asset_life"), current_date)
+    valuation_risk = _structured_score(risk_config.get("valuation_trap"), current_date)
+    risk_components = {
+        "distribution_deterioration": (
+            Decimal("100") - trend_component if trend_component is not None else unknown_risk
+        ),
+        "coverage": (
+            Decimal("100") - coverage_component if coverage_component is not None else unknown_risk
+        ),
+        "balance_sheet": (
+            Decimal("100") - balance_component if balance_component is not None else unknown_risk
+        ),
+        "structural_cycle": structural_cycle if structural_cycle is not None else unknown_risk,
+        "policy_asset_life": policy_asset_life if policy_asset_life is not None else unknown_risk,
+        "valuation": (
+            valuation_risk
+            if valuation_risk is not None
+            else decimal_value("entry_risk_uplifts_v21", "current_only_valuation_default")
+        ),
+        "governance": Decimal("100") - governance if governance is not None else unknown_risk,
+    }
+    veto_inputs, veto_config_errors = _derive_veto_inputs(
+        raw,
+        _annual_rows(raw.get("annual_distributions", []), on_date=current_date) if rows else (),
+        industry=IndustryKind(str(raw.get("industry_kind", "UNSUPPORTED"))),
+        on_date=current_date,
+    )
+    veto_inputs.setdefault("key_source_validation_failed", False)
+    veto_flags = tuple(evaluate_vetoes(veto_inputs))
+    unknown_veto_uplift = (
+        decimal_value("entry_risk_uplifts_v21", "unknown_veto")
+        if veto_config_errors
+        else ZERO
+    )
+    eri = entry_risk_index_v21(
+        risk_components,
+        unknown_veto_uplift=unknown_veto_uplift,
+        triggered_warning_uplift=min(
+            decimal_value("entry_risk_uplifts_v21", "triggered_warning_cap"),
+            decimal_value("entry_risk_uplifts_v21", "triggered_warning_each")
+            * sum(flag.triggered and flag.severity != "MAJOR" for flag in veto_flags),
+        ),
+    )
+    if veto_config_errors:
+        warnings.append("MAJOR_VETO_COVERAGE_INCOMPLETE")
+    return V21SlowVariables(
+        distribution_history=tuple(distribution_history),
+        annual_effective_distributions=tuple(effective),
+        r2=r2,
+        m5=m5,
+        t10=t10,
+        historical_distribution=historical,
+        fcf_history=tuple(fcf_history),
+        simplified_fcf=simplified,
+        fcf_capacity=capacity,
+        sustainable_distribution=sustainable,
+        coverage_ratio=coverage_ratio_value,
+        organic_growth=organic_growth,
+        conservative_growth=conservative_growth,
+        coverage_component=coverage_component,
+        trend_component=trend_component,
+        stability_component=stability_component,
+        balance_component=balance_component,
+        payout_quality=payout,
+        business_durability=business,
+        governance=governance,
+        entry_risk_index=eri,
+        risk_components=risk_components,
+        veto_flags=veto_flags,
+        unknown_veto_uplift=unknown_veto_uplift,
+        warnings=tuple(dict.fromkeys(warnings)),
+        errors=tuple(errors),
+    )
 
 
 def compute_slow_variables(raw: Mapping[str, Any], *, on_date: date | None = None) -> SlowVariables:
@@ -876,6 +1229,320 @@ def compute_fast_variables(
             ],
         },
         "errors": tuple(errors),
+    }
+
+
+def compute_company_snapshot_v21(
+    raw: Mapping[str, Any],
+    assessment: CompanyAssessment,
+    *,
+    now: datetime | None = None,
+    slow_variables: V21SlowVariables | None = None,
+) -> dict[str, Any]:
+    current = now or datetime.now(timezone.utc)
+    slow = slow_variables or compute_slow_variables_v21(
+        raw,
+        assessment,
+        on_date=current.date(),
+    )
+    runtime_blockers = list(assessment.blockers)
+    core_values = (
+        slow.historical_distribution,
+        slow.sustainable_distribution,
+        slow.coverage_ratio,
+        slow.payout_quality,
+        assessment.market_value.value,
+    )
+    if assessment.data_tier is not CompanyDataTier.BLOCKED and any(
+        value is None for value in core_values
+    ):
+        runtime_blockers.append("CALCULATION_CORE_INCOMPLETE")
+    tier = (
+        CompanyDataTier.BLOCKED
+        if runtime_blockers
+        else assessment.data_tier
+    )
+
+    seev = assessment.market_value.value
+    ssy = (
+        shareholder_yield(slow.sustainable_distribution, seev)
+        if slow.sustainable_distribution is not None and seev is not None
+        else None
+    )
+    valuation_adjustment = None
+    valuation_status = "ESTIMATED_WITHOUT_COMPARABLE_VALUATION"
+    try:
+        industry = IndustryKind(str(raw.get("industry_kind", "UNSUPPORTED")))
+        historical_valuation, current_valuation = _valuation_inputs(raw, industry=industry)
+        valuation_adjustment = valuation_drag(historical_valuation, current_valuation)
+        valuation_status = "COMPARABLE_VALUATION_APPLIED"
+    except CalculationError:
+        pass
+    cr10 = (
+        ssy + slow.conservative_growth + (valuation_adjustment or ZERO)
+        if ssy is not None
+        else None
+    )
+    return_score_value = return_score_v21(cr10) if cr10 is not None else None
+    ri = None
+    ri_qualitative_complete = False
+    if return_score_value is not None and slow.payout_quality is not None:
+        ri, ri_qualitative_complete = recommendation_index_v21(
+            return_score_value=return_score_value,
+            payout_quality_value=slow.payout_quality,
+            business_durability=slow.business_durability,
+            governance_capital_allocation=slow.governance,
+        )
+    triggered_vetoes = [flag for flag in slow.veto_flags if flag.triggered]
+    category = None
+    if tier is not CompanyDataTier.BLOCKED and ri is not None and slow.entry_risk_index is not None:
+        category = recommendation_class(
+            ri,
+            slow.entry_risk_index,
+            unresolved_veto=bool(triggered_vetoes),
+            major_veto=any(flag.severity == "MAJOR" for flag in triggered_vetoes),
+            data_complete=True,
+        )
+        if not ri_qualitative_complete and category == "A":
+            category = "B"
+
+    distribution_basis = assessment.input_plan.distribution_basis
+    coverage_basis = assessment.input_plan.coverage_basis
+    growth_basis = (
+        MetricBasis.CONSERVATIVE_DEFAULT
+        if len(_latest_continuous_fcf(slow.fcf_history)) < 2
+        else MetricBasis.DERIVED
+    )
+    trend_ratio = (
+        slow.r2 / slow.m5
+        if slow.r2 is not None and slow.m5 is not None and slow.m5 > 0
+        else None
+    )
+    metrics = {
+        "recent_2y_distribution": metric(
+            slow.r2,
+            reason="至少需要两个合格完整财年",
+            unit="CNY",
+            basis=distribution_basis,
+        ),
+        "median_5y_distribution": metric(
+            slow.m5,
+            reason="普通股息历史不足",
+            unit="CNY",
+            basis=distribution_basis,
+        ),
+        "winsorized_10y_distribution": metric(
+            slow.t10,
+            reason="普通股息历史不足",
+            unit="CNY",
+            basis=distribution_basis,
+        ),
+        "historical_conservative_distribution": metric(
+            slow.historical_distribution,
+            reason="历史保守分配额不可计算",
+            unit="CNY",
+            basis=distribution_basis,
+        ),
+        "distribution_trend": metric(
+            trend_ratio,
+            reason="分红趋势不可计算",
+            unit="ratio_to_median",
+            basis=MetricBasis.DERIVED,
+        ),
+        "fcf_capacity": metric(
+            slow.fcf_capacity,
+            reason="覆盖历史不足",
+            unit="CNY",
+            basis=coverage_basis,
+            warning="SIMPLIFIED_FCF" if slow.simplified_fcf else None,
+        ),
+        "sustainable_distribution": metric(
+            slow.sustainable_distribution,
+            reason="可持续分配额不可计算",
+            unit="CNY",
+            basis=coverage_basis,
+            warning="SIMPLIFIED_FCF" if slow.simplified_fcf else None,
+        ),
+        "coverage_ratio": metric(
+            slow.coverage_ratio,
+            kind="multiple",
+            reason="覆盖倍数不可计算",
+            unit="multiple",
+            basis=coverage_basis,
+        ),
+        "selected_security_equivalent_value": metric(
+            seev,
+            reason="监控证券等价权益价值未授权",
+            unit="CNY",
+            basis=assessment.market_value.basis,
+        ),
+        "sustainable_shareholder_yield": metric(
+            ssy,
+            kind="percent",
+            reason="S或SEEV不可用",
+            unit="ratio",
+            basis=MetricBasis.DERIVED if ssy is not None else MetricBasis.UNAVAILABLE,
+        ),
+        "organic_growth": metric(
+            slow.organic_growth,
+            kind="percent",
+            reason="没有连续增长序列",
+            unit="ratio",
+            basis=growth_basis,
+        ),
+        "conservative_growth": metric(
+            slow.conservative_growth,
+            kind="percent",
+            unit="ratio",
+            basis=growth_basis,
+            warning="GROWTH_DEFAULT_ZERO" if growth_basis is MetricBasis.CONSERVATIVE_DEFAULT else None,
+        ),
+        "valuation_adjustment": metric(
+            valuation_adjustment,
+            kind="percent",
+            status=(valuation_status if valuation_adjustment is None else "VALID"),
+            reason=(
+                "只有当前估值，缺少可比历史基准；不做机械扣减"
+                if valuation_adjustment is None
+                else None
+            ),
+            unit="ratio",
+            basis=(
+                MetricBasis.UNAVAILABLE
+                if valuation_adjustment is None
+                else MetricBasis.DERIVED
+            ),
+        ),
+        "conservative_return_10y": metric(
+            cr10,
+            kind="percent",
+            status=(valuation_status if cr10 is not None else None),
+            reason="保守回报不可计算",
+            unit="ratio",
+            basis=MetricBasis.DERIVED if cr10 is not None else MetricBasis.UNAVAILABLE,
+        ),
+        "balance_sheet_risk_indicator": metric(
+            assessment.balance_sheet.value,
+            reason="基础资产负债表指标不可用",
+            unit=assessment.balance_sheet.kind,
+            basis=assessment.balance_sheet.basis,
+        ),
+    }
+    public_scores: dict[str, Any] = {}
+    if tier is not CompanyDataTier.BLOCKED:
+        score_records = {
+            "return_score": metric(return_score_value, kind="score", unit="score_0_100", basis=MetricBasis.DERIVED),
+            "coverage_score": metric(slow.coverage_component, kind="score", unit="score_0_100", basis=coverage_basis),
+            "recent_trend_score": metric(slow.trend_component, kind="score", unit="score_0_100", basis=MetricBasis.DERIVED),
+            "history_stability_score": metric(slow.stability_component, kind="score", unit="score_0_100", basis=MetricBasis.DERIVED),
+            "balance_sheet_score": metric(slow.balance_component, kind="score", unit="score_0_100", basis=assessment.balance_sheet.basis),
+            "payout_quality": metric(slow.payout_quality, kind="score", unit="score_0_100", basis=MetricBasis.DERIVED),
+            "business_durability": metric(
+                slow.business_durability,
+                kind="score",
+                reason="评分层使用保守默认50，原字段保持为空",
+                unit="score_0_100",
+                basis=(MetricBasis.DIRECT if slow.business_durability is not None else MetricBasis.CONSERVATIVE_DEFAULT),
+            ),
+            "governance_capital_allocation": metric(
+                slow.governance,
+                kind="score",
+                reason="评分层使用保守默认50，原字段保持为空",
+                unit="score_0_100",
+                basis=(MetricBasis.DIRECT if slow.governance is not None else MetricBasis.CONSERVATIVE_DEFAULT),
+            ),
+            "recommendation_index": metric(ri, kind="score", unit="score_0_100", basis=MetricBasis.DERIVED),
+            "entry_risk_index": metric(slow.entry_risk_index, kind="score", unit="score_0_100", basis=MetricBasis.DERIVED),
+        }
+        public_scores = {key: value.public_dict() for key, value in score_records.items()}
+
+    security_metrics: dict[str, Any] = {}
+    official_shares = assessment.market_value.official_equivalent_shares
+    selected_security = assessment.market_value.selected_security_id
+    fx = None
+    for item in raw.get("share_classes", []):
+        if isinstance(item, Mapping) and str(item.get("security_id") or "") == selected_security:
+            fx = _decimal_or_none(item.get("fx_to_base"))
+            break
+    if slow.sustainable_distribution is not None and official_shares and fx and fx > 0:
+        price_4pct = slow.sustainable_distribution / Decimal("0.04") / official_shares / fx
+        security_metrics[selected_security] = {
+            "price_at_4pct": metric(
+                price_4pct,
+                unit="security_currency",
+                basis=MetricBasis.DERIVED,
+            ).public_dict()
+        }
+
+    warnings = list(dict.fromkeys((*slow.warnings, *assessment.warnings)))
+    public_vetoes = [jsonable(flag) for flag in triggered_vetoes]
+    price_timestamp = max(
+        (item.price_timestamp for item in _security_classes(raw.get("share_classes", [])) if item.price_timestamp),
+        default=None,
+    )
+    missing_qualitative = [
+        score_id
+        for score_id, value in (
+            ("business_durability", slow.business_durability),
+            ("governance_capital_allocation", slow.governance),
+        )
+        if value is None
+    ]
+    assessment_public = assessment.public_dict()
+    assessment_public["data_tier"] = tier.value
+    assessment_public["blockers"] = list(dict.fromkeys(runtime_blockers))
+    metric_bases = {
+        key: value.basis.value if isinstance(value.basis, MetricBasis) else value.basis
+        for key, value in metrics.items()
+    }
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "calculation_version": CALCULATION_VERSION,
+        "metric_definition_version": METRIC_DEFINITION_VERSION,
+        "company_id": str(raw.get("company_id") or ""),
+        "company_name": str(raw.get("company_name") or ""),
+        "securities": jsonable(raw.get("securities", [])),
+        "as_of_date": str(raw.get("as_of_date") or current.date().isoformat()),
+        "price_timestamp": price_timestamp.isoformat() if price_timestamp else None,
+        "data_status": "PARTIAL" if tier is CompanyDataTier.BLOCKED else "VALID",
+        "data_tier": tier.value,
+        "data_confidence": assessment.data_confidence.public_dict(),
+        "freshness": assessment.freshness.value,
+        "analysis_eligibility": {
+            "eligible": tier is not CompanyDataTier.BLOCKED,
+            "status": (
+                "NOT_ELIGIBLE"
+                if tier is CompanyDataTier.BLOCKED
+                else "FULLY_VALID"
+                if not missing_qualitative
+                else "CORE_VALID_QUALITATIVE_OVERLAY_PENDING"
+            ),
+            "missing_qualitative_scores": missing_qualitative,
+        },
+        "update_status": "BLOCKED" if tier is CompanyDataTier.BLOCKED else "CURRENT",
+        "warnings": warnings,
+        "blockers": list(dict.fromkeys(runtime_blockers)),
+        "validation_errors": list(slow.errors),
+        "distribution_history": jsonable(slow.distribution_history),
+        "metrics": {key: value.public_dict() for key, value in metrics.items()},
+        "metric_bases": metric_bases,
+        "security_metrics": security_metrics,
+        "scores": public_scores,
+        "classification": category,
+        "return_type": return_type(ssy, cr10),
+        "veto_flags": public_vetoes,
+        "entry_risk_components": jsonable(slow.risk_components) if tier is not CompanyDataTier.BLOCKED else {},
+        "selected_input_plan": assessment.input_plan.public_dict(),
+        "source_summary": assessment_public["source_summary"],
+        "readiness_assessment": assessment_public,
+        "coverage_adapter": {
+            "name": "NonFinancialFCFAdapter/v2.1",
+            "status": "PROXY" if slow.simplified_fcf else "DIRECT",
+            "caveats": ["SIMPLIFIED_FCF"] if slow.simplified_fcf else [],
+            "missing_fields": [],
+        },
+        "analysis_status": jsonable(raw.get("analysis_status", {"status": "NOT_REQUESTED", "latest_success_at": None})),
+        "calculated_at": current.isoformat(),
     }
 
 

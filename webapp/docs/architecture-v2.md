@@ -57,7 +57,7 @@ FastAPI 不抓取、不计算、不调用模型，也不等待分析任务。浏
 | 统一评估与置信度 | `assessment.py`、`confidence.py` |
 | 来源与对账 | `models.py`、`validation.py` |
 | 否决项 | `veto.py` |
-| 最后合法快照 | `snapshot_store.py` |
+| 当前公司层级快照与旧版兼容快照 | `snapshot_store.py` |
 | manifest release | `release.py`、`sync.py` |
 | 任务/触发/worker | `liberty_v2/analysis/` |
 | 公网任务状态白名单 | `liberty_v2/analysis/publication.py` |
@@ -72,6 +72,7 @@ FastAPI 不抓取、不计算、不调用模型，也不等待分析任务。浏
 
 单家公司数据不足会生成合法的`BLOCKED`记录，不中断或否定整批release。身份、
 财年、币种、单位、数量级、核心来源或SEEV授权失败时关闭分数；未计入的回购和
-不适用对账不会造成伪失败。有历史合法快照则发布该快照并标记更新受阻。Codex 失败只
+不适用对账不会造成伪失败。v2.1的`BLOCKED`是当前诚实状态，不再用历史分数覆盖；
+旧版无公司层级字段的快照仍保留原兼容行为。Codex 失败只
 改变独立的公开任务状态，绝不阻塞 structured release 或覆盖最后成功报告；
 stderr、认证状态、内部错误消息和本地路径不进入公网release。

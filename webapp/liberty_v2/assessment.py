@@ -4,6 +4,7 @@ import math
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
+from decimal import InvalidOperation
 from typing import Any, Iterable, Mapping, Sequence
 
 from .balance_sheet_adapter import BalanceSheetAssessment
@@ -15,7 +16,7 @@ from .market_value_resolver import (
     MarketValueResolution,
     resolve_selected_security_equivalent_value,
 )
-from .models import CompanyDataTier, Freshness, MetricBasis, ReleaseValidity
+from .models import CompanyDataTier, Freshness, IndustryKind, MetricBasis, ReleaseValidity
 
 
 FATAL_SOURCE_STATUSES = {"CONFLICT", "CALCULATION_FAILED"}
@@ -159,6 +160,12 @@ def assess_company(
         *_fiscal_structure_blockers(raw),
         *market_value.blockers,
     ]
+    try:
+        industry = IndustryKind(str(raw.get("industry_kind") or "UNSUPPORTED"))
+    except ValueError:
+        industry = IndustryKind.UNSUPPORTED
+    if industry is not IndustryKind.NON_FINANCIAL:
+        blockers.append("INDUSTRY_COVERAGE_ADAPTER_NOT_READY")
     if len(plan.distribution_years) < 2:
         blockers.append("DIVIDEND_HISTORY_LT_2Y")
     dividend_lag = _latest_year_lag(plan.distribution_years, now.date())
@@ -260,6 +267,18 @@ def _contains_non_finite(value: Any) -> bool:
         return not math.isfinite(value)
     if isinstance(value, Decimal):
         return not value.is_finite()
+    if isinstance(value, str) and value.strip().lower() in {
+        "nan",
+        "+nan",
+        "-nan",
+        "infinity",
+        "+infinity",
+        "-infinity",
+        "inf",
+        "+inf",
+        "-inf",
+    }:
+        return True
     if isinstance(value, Mapping):
         return any(_contains_non_finite(item) for item in value.values())
     if isinstance(value, (list, tuple)):
@@ -284,6 +303,24 @@ def assess_release_records(records: Iterable[Mapping[str, Any]]) -> ReleaseAsses
             errors.append(f"NON_FINITE_VALUE:{company_id or index}")
         if str(row.get("data_tier") or "") not in {item.value for item in CompanyDataTier}:
             errors.append(f"INVALID_DATA_TIER:{company_id or index}")
+        scores = row.get("scores")
+        if not isinstance(scores, Mapping):
+            errors.append(f"INVALID_SCORES:{company_id or index}")
+        elif row.get("data_tier") == CompanyDataTier.BLOCKED.value and scores:
+            errors.append(f"BLOCKED_COMPANY_HAS_SCORES:{company_id or index}")
+        elif isinstance(scores, Mapping):
+            for score_id, record in scores.items():
+                if not isinstance(record, Mapping) or record.get("value") is None:
+                    continue
+                try:
+                    score = Decimal(str(record["value"]))
+                except (InvalidOperation, ValueError):
+                    errors.append(f"INVALID_SCORE:{company_id or index}:{score_id}")
+                    continue
+                if not score.is_finite() or not Decimal("0") <= score <= Decimal("100"):
+                    errors.append(f"SCORE_OUT_OF_RANGE:{company_id or index}:{score_id}")
+        if "INPUT_OR_CALCULATION_FAILURE" in set(row.get("blockers") or []):
+            errors.append(f"INVALID_COMPANY_RECORD:{company_id or index}")
     return ReleaseAssessment(
         validity=(
             ReleaseValidity.REJECTED_RELEASE

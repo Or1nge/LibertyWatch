@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
-  "calculation_version": "shareholder-return-v2.0.2",
-  "metric_definition_version": "shareholder-return-v2.0.2",
+  "calculation_version": "shareholder-return-v2.1.0",
+  "metric_definition_version": "shareholder-return-v2.1.0",
   "prompt_version": "risk-review-v1.1.0",
   "output_schema_version": "1.1",
   "base_currency": "CNY",
@@ -33,6 +33,12 @@
   ],
   "score_weights": {
     "payout_quality": {
+      "coverage": "0.40",
+      "recent_trend": "0.25",
+      "history_stability": "0.20",
+      "balance_sheet": "0.15"
+    },
+    "payout_quality_legacy": {
       "coverage": "0.30",
       "recent_trend": "0.20",
       "history_stability": "0.15",
@@ -47,6 +53,15 @@
       "governance_capital_allocation": "0.10"
     },
     "entry_risk": {
+      "distribution_deterioration": "0.20",
+      "coverage": "0.20",
+      "balance_sheet": "0.15",
+      "structural_cycle": "0.15",
+      "policy_asset_life": "0.10",
+      "valuation": "0.10",
+      "governance": "0.10"
+    },
+    "entry_risk_legacy": {
       "distribution_deterioration": "0.20",
       "coverage": "0.20",
       "balance_sheet": "0.15",
@@ -70,6 +85,10 @@
     "history_5_7_median_cap": "1.10",
     "winsorize_minimum_years": 8,
     "fcf_capacity_haircut": "0.90",
+    "simplified_fcf_capacity_haircut": "0.85",
+    "growth_positive_cap_5y": "0.03",
+    "growth_positive_cap_3_4y": "0.02",
+    "growth_positive_cap_2y": "0",
     "organic_growth_floor": "-0.08",
     "organic_growth_ceiling": "0.06",
     "positive_growth_confirmation": "0.50",
@@ -79,6 +98,21 @@
     "return_score_cr10_center": "0.04",
     "return_score_points_per_1pct": "25",
     "incomplete_recommendation_cap": "60"
+  },
+  "return_score_bands_v21": [
+    ["0", "0"], ["0.01", "20"], ["0.02", "40"],
+    ["0.03", "60"], ["0.04", "75"], ["0.05", "88"], ["0.06", "100"]
+  ],
+  "entry_risk_uplifts_v21": {
+    "unknown_veto": "5",
+    "triggered_warning_each": "2",
+    "triggered_warning_cap": "10",
+    "unknown_qualitative_default": "60",
+    "current_only_valuation_default": "60"
+  },
+  "recommendation_defaults_v21": {
+    "missing_business_durability": "50",
+    "missing_governance_capital_allocation": "50"
   },
   "buyback_persistence": [
     {"minimum_reduction_years": 4, "factor": "1.0"},

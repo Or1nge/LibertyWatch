@@ -43,6 +43,17 @@ class LastValidSnapshotStore:
 
     def select_publishable(self, candidate: Mapping[str, Any]) -> dict[str, Any]:
         company_id = str(candidate.get("company_id") or "")
+        tier = str(candidate.get("data_tier") or "")
+        if tier:
+            result = dict(candidate)
+            if tier == "BLOCKED":
+                # A blocked company is a current, honest state.  Never replace
+                # it with an old score-bearing snapshot.
+                result["update_status"] = "BLOCKED"
+                result["scores"] = {}
+                return result
+            atomic_write_json(self._path(company_id), result)
+            return result
         status = candidate.get("data_status")
         if status == "VALID":
             result = dict(candidate)

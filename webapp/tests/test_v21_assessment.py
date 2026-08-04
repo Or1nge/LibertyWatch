@@ -28,6 +28,7 @@ from liberty_v2.models import (
     MetricBasis,
     ReleaseValidity,
 )
+from liberty_v2.pipeline import compute_company_snapshot_v21
 
 
 NOW = datetime(2026, 8, 3, 6, tzinfo=timezone.utc)
@@ -284,13 +285,27 @@ def test_unified_assessment_requires_only_selected_inputs_not_buyback_or_four_re
     required = set(result.input_plan.required_source_field_ids)
     assert not any("buyback" in item.lower() for item in required)
     assert not any(item.startswith("RECONCILIATION.") for item in required)
+    snapshot = compute_company_snapshot_v21(raw, result, now=NOW)
+    assert snapshot["data_tier"] == "ESTIMATED"
+    assert snapshot["analysis_eligibility"]["eligible"] is True
+    assert snapshot["metrics"]["valuation_adjustment"]["value"] is None
+    assert snapshot["metrics"]["conservative_return_10y"]["status"] == (
+        "ESTIMATED_WITHOUT_COMPARABLE_VALUATION"
+    )
+    assert snapshot["scores"]["recommendation_index"]["value"] is not None
+    assert snapshot["scores"]["business_durability"]["value"] is None
 
 
 def test_release_validity_is_independent_of_company_tier() -> None:
     release = assess_release_records(
         [
             {"company_id": "a", "data_tier": "ESTIMATED", "scores": {}},
-            {"company_id": "b", "data_tier": "BLOCKED", "blockers": ["DATA_GAP"]},
+            {
+                "company_id": "b",
+                "data_tier": "BLOCKED",
+                "blockers": ["DATA_GAP"],
+                "scores": {},
+            },
         ]
     )
     assert release.validity is ReleaseValidity.VALID_RELEASE
