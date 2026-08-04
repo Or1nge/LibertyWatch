@@ -176,6 +176,7 @@ def test_feature_flag_keeps_v1_and_disables_enrichment(tmp_path: Path) -> None:
 
 
 def test_v2_is_disabled_by_default(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.delenv("SHAREHOLDER_SCREEN_ENABLED", raising=False)
     monkeypatch.delenv("SHAREHOLDER_RETURN_V2_ENABLED", raising=False)
     with ASGIClient(build_app(tmp_path, enabled=None)) as client:
         assert client.get("/api/watchlist").json()["shareholderReturnV2"] == {
