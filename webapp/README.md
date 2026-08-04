@@ -18,8 +18,10 @@
 - [指标、数据字典、A/H和行业口径](docs/shareholder-return-v2.md)；
 - [56家公司来源账本回填](docs/source-ledger-backfill.md)；
 - [现金流候选对账](docs/reconciliation-cashflow-v1.md)、
-  [普通股息候选对账](docs/reconciliation-dividend-v1.md)和
+  [普通股息候选对账v1](docs/reconciliation-dividend-v1.md)、
+  [最近五年普通股息对账v2](docs/reconciliation-dividend-v2.md)、
   [注销回购候选对账](docs/reconciliation-cancellation-v1.md)；
+- [股本与股份权利对账](docs/reconciliation-share-capital-v1.md)；
 - [本地Codex分析服务](docs/codex-analysis-service.md)；
 - [部署、故障排查与回滚](docs/deployment-and-rollback-v2.md)。
 
@@ -50,6 +52,9 @@ v2新增的数据流严格保持相同方向：Linux以Decimal计算并生成str
 确定性触发器在Linux创建SQLite任务，本地worker只使用
 `gpt-5.6-sol`/`xhigh`，验证后再生成独立analysis release。Ali FastAPI只读两个
 `current`，不计算、不抓取、不调用模型。
+
+`SHAREHOLDER_RETURN_V2_ENABLED`默认关闭；代码部署不会自动把页面切到v2。只有数据
+release达到约定门槛并由运维显式设置为`true`后，FastAPI才开放v2只读数据。
 
 当前部署：
 
@@ -84,6 +89,8 @@ python3 -m venv .venv
 .venv/bin/pytest -q
 node --test frontend-tests/*.test.mjs
 .venv/bin/python scripts/shareholder_v2.py migrate
+.venv/bin/python scripts/shareholder_v2.py refresh-prices
+.venv/bin/python scripts/shareholder_v2.py readiness --compact
 .venv/bin/python scripts/shareholder_v2.py health-check
 .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 15048
 ```
@@ -214,7 +221,7 @@ collector 使用 `get_market_snapshot` 批量读取 67 只证券，默认每批 
 | `metrics.peTtm` | `pe_ttm_ratio` | 市盈率 TTM |
 | `metrics.pb` | `pb_ratio` | 市净率 |
 | `metrics.dividendYieldTtmPct` | `dividend_ratio_ttm` | TTM 股息率，单位 `%` |
-| `metrics.totalMarketValue` | `total_market_val` | 总市值，单位为证券本币元 |
+| `metrics.totalMarketValue` | `total_market_val` | 供应商市值候选，单位为证券本币元；须经资本结构表授权后才可进入SEEV |
 | `metrics.earningsPerShare` | `earning_per_share` | 每股收益 |
 | `metrics.bookValuePerShare` | `net_asset_per_share` | 每股净资产 |
 
@@ -225,6 +232,15 @@ PE、PB 和七项快照字段的覆盖数量。运行时签名只忽略上述明
 `runtime/ecb_hkd_cny.json`；汇率失败不阻断 Futu 行情快照。
 systemd 服务只额外开放富途 SDK 自身的
 `~/.com.futunn.FutuOpenD/Log` 日志目录写权限；Home 其余位置继续保持只读。
+
+股东回报v2.1不会再通过 `refresh-prices` 改写慢staging。该命令只验证67家公司
+行情覆盖和freshness；`compute`与`readiness`直接读取同一 `latest_snapshot.json`
+并在内存叠加价格、汇率、当前估值和经授权的SEEV。资本结构静态契约位于
+`config/issuer_capital_structure_v1.json`，可用以下命令检查是否与正式清单同步：
+
+```bash
+python3 scripts/support/build_capital_structure_registry.py --check
+```
 
 用户级 systemd 单元位于 `systemd/`。安装方式：
 

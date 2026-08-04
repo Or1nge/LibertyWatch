@@ -25,6 +25,33 @@ class PublicationStatus(str, Enum):
     STALE = "STALE"
 
 
+class ReleaseValidity(str, Enum):
+    VALID_RELEASE = "VALID_RELEASE"
+    REJECTED_RELEASE = "REJECTED_RELEASE"
+
+
+class CompanyDataTier(str, Enum):
+    BLOCKED = "BLOCKED"
+    ESTIMATED = "ESTIMATED"
+    CALCULABLE = "CALCULABLE"
+    VERIFIED = "VERIFIED"
+
+
+class MetricBasis(str, Enum):
+    DIRECT = "DIRECT"
+    DERIVED = "DERIVED"
+    VENDOR_AUTHORIZED = "VENDOR_AUTHORIZED"
+    PROXY = "PROXY"
+    CONSERVATIVE_DEFAULT = "CONSERVATIVE_DEFAULT"
+    UNAVAILABLE = "UNAVAILABLE"
+
+
+class Freshness(str, Enum):
+    CURRENT = "CURRENT"
+    MARKET_CLOSED_CURRENT = "MARKET_CLOSED_CURRENT"
+    STALE_LAST_GOOD = "STALE_LAST_GOOD"
+
+
 class CoverageStatus(str, Enum):
     VALID = "VALID"
     PARTIAL = "PARTIAL"
@@ -188,6 +215,8 @@ class MetricRecord:
     display: str
     reason: str | None = None
     unit: str | None = None
+    basis: MetricBasis | str | None = None
+    warning: str | None = None
 
     def public_dict(self) -> dict[str, Any]:
         return {
@@ -196,6 +225,8 @@ class MetricRecord:
             "display": self.display,
             "reason": self.reason,
             "unit": self.unit,
+            "basis": self.basis.value if isinstance(self.basis, MetricBasis) else self.basis,
+            "warning": self.warning,
         }
 
 

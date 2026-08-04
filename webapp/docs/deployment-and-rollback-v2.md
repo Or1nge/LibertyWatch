@@ -51,7 +51,7 @@ SHAREHOLDER_V2_QUOTE_SNAPSHOT=/var/lib/liberty/shareholder-v2/inputs/latest_snap
 
 | 变量 | 用途 |
 |---|---|
-| `SHAREHOLDER_RETURN_V2_ENABLED` | FastAPI v2功能开关 |
+| `SHAREHOLDER_RETURN_V2_ENABLED` | FastAPI v2功能开关；默认`false`，只有明确切换时设为`true` |
 | `SHAREHOLDER_V2_LOCAL_ROOT` / `STAGING_DIR` | Linux数据与标准化输入 |
 | `SHAREHOLDER_V2_QUOTE_SNAPSHOT` | 行情快变量交接文件 |
 | `ANALYSIS_JOB_DB` | SQLite任务库 |
@@ -162,6 +162,17 @@ set +a
 cd /home/or1ngelinux/Liberty/webapp
 .venv/bin/python scripts/import_reconciled_source_ledgers.py verify --run-id <run-id>
 .venv/bin/python scripts/import_reconciled_source_ledgers.py rollback --run-id <latest-run-id>
+```
+
+本次已执行的六个run必须按以下顺序回滚：
+
+```bash
+.venv/bin/python scripts/import_reconciled_source_ledgers.py rollback --run-id dividend-v2-20260803
+.venv/bin/python scripts/import_reconciled_source_ledgers.py rollback --run-id share-capital-v1-20260803
+.venv/bin/python scripts/import_reconciled_source_ledgers.py rollback --run-id cashflow-v2-20260803
+.venv/bin/python scripts/import_reconciled_source_ledgers.py rollback --run-id reconciled-v1-official-source-fix-20260803
+.venv/bin/python scripts/import_reconciled_source_ledgers.py rollback --run-id reconciled-v1-provenance-amendment-20260803
+.venv/bin/python scripts/import_reconciled_source_ledgers.py rollback --run-id reconciled-v1-20260803
 ```
 
 随后才按下述命令切回旧的结构化发布release。来源账本回滚不删除官方PDF、Futu

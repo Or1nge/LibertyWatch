@@ -1,6 +1,6 @@
 # Liberty 股东回报 v2：现状审计与迁移计划
 
-更新日期：2026-08-03
+更新日期：2026-08-04
 
 ## 实际架构
 
@@ -68,14 +68,24 @@ provider。2026-08-02已补齐其余56家的官方年报归档，并保存56家F
 计算公司级收益率。现有 67 家清单与任务描述中的“68 家”不一致；迁移不得虚构
 第 68 家。
 
+2026-08-04完成v2.1第一阶段接线：67家公司均进入版本化资本结构表；其中14家
+Futu `totalMarketValue`已通过官方等价股数与隐含股数不超过2%的检查并获得供应商
+语义授权，另2家供应商值偏差超过5%但可用官方等价股数直接推导SEEV。其余公司
+继续明确阻断。56家已有Futu资产负债表响应可在内存中适配直接净负债/权益或
+负债/资产代理。当前普通股息达到2年的7家公司中，只有2家的最新分红财年满足
+新近期性要求，而这2家尚未完成SEEV授权，因此本次dry-run仍诚实地保持67家
+`BLOCKED`，不是release结构非法。
+
 ## 目标数据流和责任边界
 
 ```text
 Linux 原始来源
   -> 带来源/币种/单位/财年的原始记录
-  -> Decimal 慢变量计算与行业覆盖适配器
-  -> 数据对账和 VALID/PARTIAL/INVALID/STALE
-  -> 最后合法公司快照 + v2 结构化 release
+  + latest_snapshot行情/估值快变量（只读内存覆盖）
+  + 资本结构授权与Futu资产负债表适配
+  -> SelectedInputPlan + 统一assessment
+  -> Release Validity / Company Data Tier / Metric Basis / Freshness
+  -> Decimal 慢变量计算 + mixed-tier v2结构化release
   -> 确定性触发器 + SQLite Codex job
   -> 固定输入快照 + gpt-5.6-sol/xhigh/read-only
   -> 严格 Schema 校验 + 公开 JSON/Markdown release
@@ -122,3 +132,9 @@ Codex 结果永远不写回原始记录、标准化记录、财务指标、自�
 映射。非紧急Codex分析增加同公司30日冷却，新增紧急事件绕过；业务耐久度和治理
 可由Codex提出候选，但只有通过确定性来源/日期/量表审核后才进入Linux私有overlay。
 完整回归统一使用 WebApp 开发环境；普通测试只使用 fake Codex。
+
+v2.1第一阶段新增 `issuer_capital_structure_v1.json`、`market_observation.py`、
+`market_value_resolver.py`、`balance_sheet_adapter.py`、`input_resolution.py`、
+`confidence.py`和`assessment.py`。`refresh-prices`只做非写入校验，正式计算和
+`readiness`共用同一快变量准备及assessment函数。功能开关继续默认`false`；
+本阶段不改线上展示、不激活Ali v2。

@@ -133,7 +133,7 @@ def create_app(
         enabled=(
             v2_enabled
             if v2_enabled is not None
-            else _boolean_from_env("SHAREHOLDER_RETURN_V2_ENABLED", True)
+            else _boolean_from_env("SHAREHOLDER_RETURN_V2_ENABLED", False)
         ),
     )
     started_at = clock()

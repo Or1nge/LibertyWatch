@@ -90,7 +90,7 @@ def analysis() -> dict:
     }
 
 
-def build_app(tmp_path: Path, *, enabled: bool = True):
+def build_app(tmp_path: Path, *, enabled: bool | None = True):
     structured = tmp_path / "published" / "structured"
     analyses = tmp_path / "published" / "analysis"
     build_structured_release(
@@ -161,6 +161,16 @@ def test_feature_flag_keeps_v1_and_disables_enrichment(tmp_path: Path) -> None:
     with ASGIClient(build_app(tmp_path, enabled=False)) as client:
         payload = client.get("/api/watchlist").json()
         assert payload["shareholderReturnV2"] == {"enabled": False, "available": False}
+        assert client.get("/api/v1/companies").status_code == 503
+
+
+def test_v2_is_disabled_by_default(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.delenv("SHAREHOLDER_RETURN_V2_ENABLED", raising=False)
+    with ASGIClient(build_app(tmp_path, enabled=None)) as client:
+        assert client.get("/api/watchlist").json()["shareholderReturnV2"] == {
+            "enabled": False,
+            "available": False,
+        }
         assert client.get("/api/v1/companies").status_code == 503
 
 

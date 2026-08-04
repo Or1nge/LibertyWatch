@@ -6,6 +6,8 @@
 `config/metric_policy_v2.json` 保存公式系数、阈值、评分权重、行业参数、对账
 容差和 Codex 固定模型。两者都锁定到
 `shareholder-return-v2.0.2`。代码启动及测试会拒绝版本不一致或解释字段缺失。
+v2.1第一阶段已新增SEEV、快变量覆盖和统一assessment契约；正式公式/指标注册表
+仍将在后续计算PR统一升至`shareholder-return-v2.1.0`，本阶段不提前改变线上值。
 
 核心实现位于 `liberty_v2/calculations.py`，金额、股本、价格、汇率、收益率和
 评分均使用 `Decimal`；float、NaN 和 Infinity 被拒绝。公式包括：
@@ -73,16 +75,24 @@ CR10       = SSY + g_cons + valuation_drag
 
 每个进入计算的数值字段必须有约定的来源账本ID，例如
 `FY2025.ordinary_dividend`、`MARKET.<security_id>.price`、
-`SECURITY.<security_id>.issued_shares`、`VALUATION.current` 和
-`RECONCILIATION.opening_minus_closing_shares`。仅放入一个泛化“来源”记录不能
-通过校验。行情刷新器会更新价格与汇率的账本记录；仅数值和抓取时间变化不会使
-慢变量缓存失效，来源契约或状态变化会使其失效。
+`SECURITY.<security_id>.issued_shares`和
+`FY2025.balance_sheet.total_assets`。`SelectedInputPlan`先确定实际采用的分红、
+覆盖、市值、估值、资产负债表和增长口径，再只校验这些字段；未计入的回购和
+不适用的对账不会被预先列为必填。行情、汇率和当前估值从快照生成内存来源记录，
+不会写回慢staging；仅快变量数值变化不会使慢变量缓存失效。
 
 ## 公司层、证券层与财年
 
-`company_id` 和 `security_id/share_class` 分离。公司总市值必须覆盖所有重要股份
-类别并按各自价格、发行股本和 `fx_to_base` 统一为 CNY。预期类别不完整、任一
-重要行情过期、权利未核验时，公司级实时收益率或证券层4%价格均不可计算。
+`company_id` 和 `security_id/share_class` 分离。RI的分母改为当前监控证券的
+“监控证券等价权益价值”（SEEV）：所有重要股份类别先按经济权利折算为监控证券
+等价股数，再乘监控证券价格和汇率。单一普通股类别时SEEV等于公司市值；权利
+相同的A/H公司则以所选A股或H股价格乘A/H总等价股数。实际各类别市值之和可以
+另行展示，但不是RI必要分母。
+
+Futu `totalMarketValue`只有在 `issuer_capital_structure_v1.json` 授权后才能作为
+供应商SEEV。每次运行仍重新检查 `totalMarketValue/currentPrice` 隐含股数：与
+官方等价股数差异不超过2%可可靠使用，2%—5%降级并警告，超过5%阻断；ADS必须
+核对存托比例，双柜台不得重复计数，分配权不清的多类别公司继续阻断。
 
 证券层4%参考价先计算 `S/4%` 的公司价值，再按经济权利因子、等价公司股本和
 汇率分配；不会把公司分配额直接除以单一 H 股或 A 股股本。
@@ -112,17 +122,17 @@ JSON。
 
 ## 发布契约
 
-每家公司包含 `schema_version`、`calculation_version`、`company_id`、日期、
-`data_status`、`metrics`、`scores`、`veto_flags`、`source_summary`、
-`analysis_status`、`distribution_history`、`security_metrics` 和行业适配器状态。
-精确值为字符串，另有服务端生成的 `display` 与明确缺失原因。
+发布状态拆成四个正交维度：
 
-发布前对账公司总市值、股息、回购现金和股本桥；容差集中在策略文件。状态为：
+- Release Validity：`VALID_RELEASE/REJECTED_RELEASE`，只判断schema、唯一ID、
+  manifest、SHA-256、版本、有限数和来源引用；一批中包含`BLOCKED`公司仍可合法；
+- Company Data Tier：`BLOCKED/ESTIMATED/CALCULABLE/VERIFIED`；
+- Metric Basis：`DIRECT/DERIVED/VENDOR_AUTHORIZED/PROXY/CONSERVATIVE_DEFAULT/UNAVAILABLE`；
+- Freshness：`CURRENT/MARKET_CLOSED_CURRENT/STALE_LAST_GOOD`。
 
-- `VALID`：可完整推荐并进入 Codex 触发判断；
-- `PARTIAL`：可展示明确的不完整结果，但推荐受限；
-- `INVALID`：本次核心校验失败；
-- `STALE`：行情过期或保留了最后合法快照。
+公司记录将包含 `data_tier`、`data_confidence`、`freshness`、`metric_bases`、
+`warnings`、`blockers`、`selected_input_plan`和`source_summary`。精确值为Decimal
+字符串；未知仍是`null`，只有明确的评分政策才可使用0并标记basis。
 
 ## 一次性迁移
 
@@ -146,4 +156,6 @@ v2 公司层指标。生产回填需按本页原始数据契约补齐。
 `tests/test_shareholder_v2_calculations.py` 覆盖25个黄金场景、不变量、来源契约、
 A/H、行业适配器、自动否决、对账、拆并股及快慢缓存。价格变化只重算快变量；
 同一日慢输入哈希未变时复用 `cache/slow/<company_id>.json`，计算版本变化会强制
-失效旧缓存。
+失效旧缓存。`tests/test_v21_assessment.py`另行覆盖67家公司授权表、SEEV动态复核、
+行情新鲜度、非写入覆盖层、资产负债表直接/代理适配、统一输入计划和mixed-tier
+release合法性。
