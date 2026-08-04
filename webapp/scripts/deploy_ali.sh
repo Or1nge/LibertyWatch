@@ -235,14 +235,13 @@ LIBERTY_SHARED_DIR="${REMOTE_BASE}/shared" \
   CODEX_ANALYSIS_MODE="${CODEX_ANALYSIS_MODE}" \
   docker compose -p liberty-watch up -d --build --wait --wait-timeout 120
 
-python3 - "${PUBLIC_PORT}" "${SHAREHOLDER_SCREEN_ENABLED}" "${REMOTE_RELEASE}" <<'PY'
+python3 - "${PUBLIC_PORT}" "${SHAREHOLDER_SCREEN_ENABLED}" <<'PY'
 import json
 import sys
 import urllib.request
 
 port = int(sys.argv[1])
 screen_enabled = sys.argv[2] == "true"
-release = sys.argv[3]
 paths = ["/healthz", "/readyz", "/api/watchlist"]
 if screen_enabled:
     paths.extend(("/api/v1/metric-definitions", "/api/v1/companies"))
@@ -256,15 +255,28 @@ for path in paths:
                 raise SystemExit("watchlist payload is incomplete")
         elif path == "/api/v1/companies":
             payload = json.load(response)
-            sys.path.insert(0, release)
-            from app.v2_contract import validate_activation_canary
-            with open(
-                f"{release}/config/shareholder_v2_activation_reviews.json",
-                encoding="utf-8",
-            ) as handle:
-                reviews = json.load(handle)
-            validate_activation_canary(payload, approval=reviews)
+            if payload.get("company_count") != 67 or len(payload.get("companies", [])) != 67:
+                raise SystemExit("shareholder-screen company coverage is incomplete")
 PY
+
+if [[ "${SHAREHOLDER_SCREEN_ENABLED}" == "true" ]]; then
+  docker exec -i liberty-watch-liberty-watch-1 python - <<'PY'
+import json
+import urllib.request
+
+from app.v2_contract import validate_activation_canary
+
+with urllib.request.urlopen(
+    "http://127.0.0.1:5048/api/v1/companies", timeout=10
+) as response:
+    payload = json.load(response)
+with open(
+    "/app/config/shareholder_v2_activation_reviews.json", encoding="utf-8"
+) as handle:
+    reviews = json.load(handle)
+validate_activation_canary(payload, approval=reviews)
+PY
+fi
 
 trap - EXIT
 echo "Release ${REMOTE_RELEASE} is healthy on the server and awaits public verification."

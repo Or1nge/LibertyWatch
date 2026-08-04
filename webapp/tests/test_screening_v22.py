@@ -179,6 +179,12 @@ def test_web_image_contains_shareholder_v2_runtime() -> None:
     assert "COPY --chown=10001:10001 liberty_v2 /app/liberty_v2" in dockerfile
 
 
+def test_remote_canary_runs_inside_the_python_311_web_container() -> None:
+    deploy = (PROJECT / "scripts" / "deploy_ali.sh").read_text(encoding="utf-8")
+    assert "docker exec -i liberty-watch-liberty-watch-1 python -" in deploy
+    assert "sys.path.insert(0, release)" not in deploy
+
+
 def test_feature_modes_default_closed_and_old_flag_not_mapped(monkeypatch: pytest.MonkeyPatch) -> None:
     from scripts.shareholder_v2 import codex_analysis_mode, shareholder_screen_enabled, validate_sync_mode
 
