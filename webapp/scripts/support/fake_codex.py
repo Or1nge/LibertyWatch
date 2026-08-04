@@ -187,7 +187,7 @@ def main() -> int:
         print("--ask-for-approval --search")
         return 0
     if arguments == ["exec", "--help"]:
-        print("--ephemeral --model --sandbox --json --output-schema --output-last-message")
+        print("--ephemeral --skip-git-repo-check --model --sandbox --json --output-schema --output-last-message")
         return 0
     if arguments == ["debug", "models"]:
         print(json.dumps({"models": [{"slug": "gpt-5.6-sol"}]}))

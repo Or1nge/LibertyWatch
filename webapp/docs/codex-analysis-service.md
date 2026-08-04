@@ -27,12 +27,16 @@ CLI子进程只继承认证、代理、CA、locale和临时目录白名单，不
 
 ```bash
 codex --ask-for-approval never --search exec \
-  --ephemeral --cd /opt/liberty/shareholder-v2/current \
+  --skip-git-repo-check --ephemeral \
+  --cd /opt/liberty/shareholder-v2/current \
   --model gpt-5.6-sol -c 'model_reasoning_effort="xhigh"' \
   --sandbox read-only --json \
-  --output-schema analysis/schema/risk_analysis_output_v1.json \
+  --output-schema analysis/schema/risk_analysis_output_v2.json \
   --output-last-message /tmp/final.output.json -
 ```
+
+安装后的`current`是不可变release且不包含`.git`，因此显式跳过CLI的Git仓库检查；
+这不跳过冻结输入的精确文件集/SHA校验、Schema校验、公开来源门禁或read-only sandbox。
 
 启动检查覆盖 `codex --version`、`codex debug models`、`codex login status`、输出
 权限、Prompt版本和Schema模型常量。模型或认证不可用时任务分别进入

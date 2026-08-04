@@ -44,6 +44,14 @@ def build_worker(tmp_path: Path, scenario: str = "valid") -> tuple[AnalysisJobSt
     return store, worker, job.job_id
 
 
+def test_worker_command_supports_immutable_non_git_release(tmp_path: Path) -> None:
+    _, worker, _ = build_worker(tmp_path)
+    command = worker.command(tmp_path / "final.json")
+    assert command[command.index("exec") + 1] == "--skip-git-repo-check"
+    assert command[command.index("--sandbox") + 1] == "read-only"
+    assert command[command.index("--ask-for-approval") + 1] == "never"
+
+
 def test_fake_codex_v2_schema_and_local_latest(tmp_path: Path) -> None:
     store, worker, job_id = build_worker(tmp_path)
     worker.startup_check()

@@ -110,6 +110,7 @@ class CodexWorker:
                 ("exec", "--help"),
                 (
                     "--ephemeral",
+                    "--skip-git-repo-check",
                     "--model",
                     "--sandbox",
                     "--json",
@@ -192,6 +193,7 @@ class CodexWorker:
             "never",
             "--search",
             "exec",
+            "--skip-git-repo-check",
             "--ephemeral",
             "--cd",
             str(self.config.project_root),
