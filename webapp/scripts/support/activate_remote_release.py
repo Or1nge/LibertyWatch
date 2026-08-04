@@ -16,6 +16,15 @@ def unlink_if_exists(path: Path) -> None:
         pass
 
 
+def normalize_public_permissions(root: Path) -> None:
+    root.chmod(0o755)
+    for path in root.rglob("*"):
+        if path.is_dir():
+            path.chmod(0o755)
+        elif path.is_file():
+            path.chmod(0o644)
+
+
 def digest(path: Path) -> str:
     value = hashlib.sha256()
     with path.open("rb") as handle:
@@ -75,6 +84,7 @@ def main() -> int:
     if actual != expected:
         raise SystemExit("release file set mismatch")
     unlink_if_exists(incoming / ".activate.py")
+    normalize_public_permissions(incoming)
     releases = root / "releases"
     final = releases / args.release_id
     if final.exists():

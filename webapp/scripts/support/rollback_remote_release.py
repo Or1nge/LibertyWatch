@@ -15,6 +15,15 @@ def unlink_if_exists(path: Path) -> None:
         pass
 
 
+def normalize_public_permissions(root: Path) -> None:
+    root.chmod(0o755)
+    for path in root.rglob("*"):
+        if path.is_dir():
+            path.chmod(0o755)
+        elif path.is_file():
+            path.chmod(0o644)
+
+
 def safe_relative(value: str) -> Path:
     parsed = PurePosixPath(value)
     if parsed.is_absolute() or ".." in parsed.parts or not parsed.parts:
@@ -77,6 +86,7 @@ def main() -> int:
         raise SystemExit("unsafe release ID")
     release = args.channel_root / "releases" / args.release_id
     verify(release, args.channel)
+    normalize_public_permissions(release)
     temporary = args.channel_root / f".current.{os.getpid()}.tmp"
     unlink_if_exists(temporary)
     temporary.symlink_to(release)
