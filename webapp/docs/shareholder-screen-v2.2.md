@@ -4,6 +4,7 @@
 
 公开schema为`shareholder-screen-v2`，计算与指标定义版本均为
 `shareholder-screen-v2.2.0`，policy为`shareholder-screen-policy-v2.2.0`。
+Codex prompt补丁版本为`risk-review-v2.0.1`，新增公开来源网址门禁。
 release必须恰有67家公司，状态仅为`READY`、`DATA_LIMITED`、`STALE`或
 `UNAVAILABLE`。缺失字段保持`null`；只有身份冲突、无合法价格、结构损坏或非有限
 值会形成公司级致命项。

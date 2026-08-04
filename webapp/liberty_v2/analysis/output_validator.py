@@ -97,6 +97,13 @@ class AnalysisOutputValidator:
             parsed = urlparse(source["url"])
             if parsed.scheme not in {"http", "https"} or not parsed.netloc:
                 raise OutputValidationError("source URLs must use http or https")
+            hostname = (parsed.hostname or "").lower()
+            if (
+                hostname in {"localhost", "example.com", "www.example.com"}
+                or hostname.endswith(".local")
+                or hostname.endswith(".invalid")
+            ):
+                raise OutputValidationError("source URLs must be public evidence, not local or placeholder URLs")
         if payload["analysis_mode"] in {"URGENT_VETO_REVIEW", "URGENT_RISK_REVIEW"} and payload["verdict"] == "SCALE_IN":
             raise OutputValidationError("urgent reviews may not return SCALE_IN")
         if bool(payload["data_issue_detected"]) != bool(payload["data_issue_notes"]):

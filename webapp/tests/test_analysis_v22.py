@@ -3,7 +3,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from liberty_v2.analysis.job_store import AnalysisJobStore
+from liberty_v2.analysis.output_validator import AnalysisOutputValidator, OutputValidationError
 from liberty_v2.analysis.prompt_renderer import InputSnapshotBuilder, snapshot_hash
 from liberty_v2.analysis.storage import AnalysisStorage
 from liberty_v2.analysis.worker import CodexWorker, WorkerConfig
@@ -68,3 +71,36 @@ def test_failed_new_v2_job_does_not_remove_last_good(tmp_path: Path) -> None:
     assert (tmp_path / "output" / "issuer-v22" / "latest.json").read_bytes() == before
     payload = json.loads((tmp_path / "output" / "issuer-v22" / "runs" / store.latest_success("issuer-v22").job_id / "final.json").read_text())
     assert payload["schema_version"] == "2.0"
+
+
+def test_v2_schema_const_and_enum_nodes_have_explicit_types() -> None:
+    schema = json.loads(SCHEMA_V2.read_text(encoding="utf-8"))
+
+    def walk(node: object) -> None:
+        if isinstance(node, dict):
+            if "const" in node or "enum" in node:
+                assert "type" in node
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(schema)
+    assert schema["properties"]["sources"]["items"]["properties"]["url"] == {
+        "type": "string",
+        "pattern": "^https?://",
+    }
+
+
+def test_v2_validator_rejects_local_or_placeholder_sources(tmp_path: Path) -> None:
+    store, worker, job_id = build_worker(tmp_path)
+    assert worker.run_once().status == "SUCCEEDED"
+    job = store.get(job_id)
+    payload = json.loads(
+        (tmp_path / "output" / "issuer-v22" / "runs" / job_id / "final.json").read_text()
+    )
+    payload["sources"][0]["url"] = "https://invalid.local/research_bundle.json"
+    assert job is not None
+    with pytest.raises(OutputValidationError, match="public evidence"):
+        AnalysisOutputValidator(SCHEMA_V2).validate(payload, job, screening_company())

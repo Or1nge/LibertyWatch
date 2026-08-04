@@ -2,6 +2,11 @@
 
 ## 2026-08-04
 
+- 海尔智家`A600690`真实INTERNAL Codex smoke完成模型推理、本地latest和analysis
+  release；真实接口暴露并修复Structured Outputs要求枚举/常量显式类型、且不接受
+  `format: uri`的问题。事后审计发现模型把4个冻结输入伪装为`invalid.local`来源，
+  因此新增公开来源网址门禁并将Prompt补丁版本升至`risk-review-v2.0.1`；原成功
+  产物保留审计，v2.0.1再次真实推理需单独授权。
 - LibertyWatch V2公开计算升级为`shareholder-screen-v2.2.0`：67家公司全部进入
   价格机会分与财务韧性分双支柱筛选，缺失组成项通过coverage向50收缩；旧
   SEEV/SSY/CR10/RI/ERI退出公开主路径但保留legacy/internal回放。

@@ -60,7 +60,7 @@ def valid_payload() -> dict:
             {
                 "title": "测试年报",
                 "publisher": "测试交易所",
-                "url": "https://example.com/annual-report",
+                "url": "https://www.sec.gov/",
                 "publish_date": "2026-03-31",
                 "event_date": "2025-12-31",
                 "supports": "仅用于fake执行器测试",
@@ -136,7 +136,7 @@ def legacy_payload() -> dict:
             {
                 "title": "测试年报",
                 "publisher": "测试交易所",
-                "url": "https://example.com/annual-report",
+                "url": "https://www.sec.gov/",
                 "publish_date": "2026-03-31",
                 "event_date": "2025-12-31",
                 "supports": "仅用于fake执行器测试",
@@ -145,7 +145,7 @@ def legacy_payload() -> dict:
         "reviewed_overlay_candidates": {
             "business_durability": {
                 "value": 72,
-                "source": "https://example.com/annual-report",
+                "source": "https://www.sec.gov/",
                 "as_of_date": company.get("as_of_date") or "2026-08-01",
                 "expires_at": "2027-08-01",
                 "reason": "主营业务需求和现金产生能力总体稳定，但仍需持续复核竞争格局与资本开支。",
@@ -160,7 +160,7 @@ def legacy_payload() -> dict:
             },
             "governance_capital_allocation": {
                 "value": 68,
-                "source": "https://example.com/annual-report",
+                "source": "https://www.sec.gov/",
                 "as_of_date": company.get("as_of_date") or "2026-08-01",
                 "expires_at": "2027-08-01",
                 "reason": "现有公开资料支持基本治理纪律，但资本配置成效仍需用后续完整财年验证。",
@@ -227,7 +227,7 @@ def main() -> int:
     elif scenario == "wrong_ticker":
         payload["ticker"] = "WRONG"
     elif scenario == "overlay_unknown_source" and "reviewed_overlay_candidates" in payload:
-        payload["reviewed_overlay_candidates"]["business_durability"]["source"] = "https://example.com/not-cited"
+        payload["reviewed_overlay_candidates"]["business_durability"]["source"] = "https://www.sec.gov/not-cited"
     elif scenario == "overlay_expiry_too_long" and "reviewed_overlay_candidates" in payload:
         payload["reviewed_overlay_candidates"]["business_durability"]["expires_at"] = "2028-08-01"
     elif scenario == "overlay_rubric_mismatch" and "reviewed_overlay_candidates" in payload:
