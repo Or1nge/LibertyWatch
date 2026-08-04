@@ -174,6 +174,11 @@ def test_installer_copies_required_config_and_smokes_before_switch() -> None:
     assert text.index("health-check") < text.index('mv -Tf "${RELEASE_ROOT}/.current-${RELEASE_ID}"')
 
 
+def test_web_image_contains_shareholder_v2_runtime() -> None:
+    dockerfile = (PROJECT / "Dockerfile").read_text(encoding="utf-8")
+    assert "COPY --chown=10001:10001 liberty_v2 /app/liberty_v2" in dockerfile
+
+
 def test_feature_modes_default_closed_and_old_flag_not_mapped(monkeypatch: pytest.MonkeyPatch) -> None:
     from scripts.shareholder_v2 import codex_analysis_mode, shareholder_screen_enabled, validate_sync_mode
 

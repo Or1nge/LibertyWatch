@@ -20,6 +20,7 @@ RUN pip install --no-cache-dir --no-compile --no-index \
     && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin liberty
 
 COPY --chown=10001:10001 app /app/app
+COPY --chown=10001:10001 liberty_v2 /app/liberty_v2
 COPY --chown=10001:10001 public /app/public
 COPY --chown=10001:10001 config /app/config
 RUN mkdir -p /app/runtime && chown 10001:10001 /app/runtime
