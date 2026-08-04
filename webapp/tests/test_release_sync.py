@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import json
 import shutil
 import subprocess
@@ -20,6 +21,11 @@ from liberty_v2.sync import AliReleaseSynchronizer, AliSyncConfig, SyncError
 PROJECT = Path(__file__).resolve().parents[1]
 ACTIVATOR = PROJECT / "scripts" / "support" / "activate_remote_release.py"
 ROLLBACK = PROJECT / "scripts" / "support" / "rollback_remote_release.py"
+
+
+@pytest.mark.parametrize("helper", [ACTIVATOR, ROLLBACK])
+def test_remote_release_helpers_parse_as_python_36(helper: Path) -> None:
+    ast.parse(helper.read_text(encoding="utf-8"), filename=str(helper), feature_version=(3, 6))
 
 
 def test_atomic_release_manifest_switch_and_rollback(tmp_path: Path) -> None:
