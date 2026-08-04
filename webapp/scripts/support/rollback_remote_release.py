@@ -89,7 +89,7 @@ def main() -> int:
     normalize_public_permissions(release)
     temporary = args.channel_root / f".current.{os.getpid()}.tmp"
     unlink_if_exists(temporary)
-    temporary.symlink_to(release)
+    temporary.symlink_to(Path("releases") / args.release_id)
     os.replace(temporary, args.channel_root / "current")
     print(args.release_id)
     return 0

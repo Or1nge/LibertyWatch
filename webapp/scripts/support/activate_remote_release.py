@@ -92,7 +92,7 @@ def main() -> int:
     os.replace(incoming, final)
     temporary = root / f".current.{args.release_id}.tmp"
     unlink_if_exists(temporary)
-    temporary.symlink_to(final)
+    temporary.symlink_to(Path("releases") / args.release_id)
     os.replace(temporary, root / "current")
     current = final.resolve()
     candidates = sorted(

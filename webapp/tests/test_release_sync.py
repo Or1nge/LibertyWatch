@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import json
+import os
 import stat
 import shutil
 import subprocess
@@ -136,6 +137,7 @@ def test_remote_activator_verifies_incoming_and_switches_atomically(tmp_path: Pa
     final = remote / "releases" / "release-1"
     assert final.is_dir()
     assert (remote / "current").resolve() == final.resolve()
+    assert os.readlink(remote / "current") == "releases/release-1"
     assert verify_release(final)["release_id"] == "release-1"
     assert stat.S_IMODE(final.stat().st_mode) == 0o755
     assert all(
@@ -245,6 +247,7 @@ def test_remote_rollback_helper_verifies_then_switches(tmp_path: Path) -> None:
         check=True,
     )
     assert (root / "current").resolve() == first.resolve()
+    assert os.readlink(root / "current") == "releases/r1"
     assert stat.S_IMODE(first.stat().st_mode) == 0o755
     assert all(
         stat.S_IMODE(path.stat().st_mode) == (0o755 if path.is_dir() else 0o644)
