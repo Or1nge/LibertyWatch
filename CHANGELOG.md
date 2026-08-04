@@ -2,6 +2,13 @@
 
 ## 2026-08-04
 
+- 用户确认此前OpenD异常根因为外部IP问题；服务恢复后，生产collector从21:34起连续
+  取得67/67行情并原子更新本机v1快照、v2交接快照和阿里共享快照，三者SHA一致。
+  修复用户级`liberty-quote-push.service`在`ProtectSystem=strict`下未对白名单
+  `/var/lib/liberty/shareholder-v2/inputs`开放原子临时文件写入的问题；timer自动复跑
+  成功，随后结构化release通过67家公司、双分数、Schema、manifest和零非有限数校验。
+  截至远端验收已有5家Codex分析通过公开来源门禁并在公网返回同一analysis ID；
+  本地/阿里analysis release `20260804T134717Z-6c205b000fd5`的manifest与索引SHA一致。
 - 获得批量外发与持续触发授权后，生产开关已切换为
   `SHAREHOLDER_SCREEN_ENABLED=true`、`CODEX_ANALYSIS_MODE=PUBLIC`；当前31家触发
   公司的冻结`research_bundle`均以`INITIAL_TRIGGER_BACKLOG`入队。首个苏泊尔
